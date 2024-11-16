@@ -11,7 +11,7 @@
 @layer utilities {
   .animate-gradient {
     animation: gradient 8s linear infinite;
-    background-size: 200% auto;
+    background-size: 400% auto;
   }
 
   .perspective-1000 {
@@ -33,6 +33,23 @@
   100% {
     background-position: 0% 50%;
   }
+}
+
+/* Neon glow effects */
+.neon-glow {
+  box-shadow: 0 0 20px rgba(255,0,255,0.5);
+}
+
+.neon-glow:hover {
+  box-shadow: 0 0 30px rgba(255,0,255,0.7);
+}
+
+.neon-glow-cyan {
+  box-shadow: 0 0 20px rgba(0,255,255,0.3);
+}
+
+.neon-glow-cyan:hover {
+  box-shadow: 0 0 30px rgba(0,255,255,0.5);
 }
 
 /* Custom scrollbar */
