@@ -1,7 +1,7 @@
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Float } from "@react-three/drei";
 import { ErrorBoundary } from "react-error-boundary";
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 
 function Screen() {
   return (
@@ -71,32 +71,63 @@ function Scene() {
 }
 
 function Preview3D() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isSupported, setIsSupported] = useState(true);
+
   useEffect(() => {
+    // Check WebGL support
+    const canvas = document.createElement('canvas');
+    const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+    
+    if (!gl) {
+      setIsSupported(false);
+      return;
+    }
+
     // Cleanup function
     return () => {
-      const canvases = document.querySelectorAll('canvas');
-      canvases.forEach(canvas => {
-        const gl = canvas.getContext('webgl') || canvas.getContext('webgl2');
-        if (gl) {
-          const ext = gl.getExtension('WEBGL_lose_context');
-          if (ext) ext.loseContext();
-        }
-      });
+      if (containerRef.current) {
+        const canvases = containerRef.current.getElementsByTagName('canvas');
+        Array.from(canvases).forEach(canvas => {
+          const gl = canvas.getContext('webgl') || canvas.getContext('webgl2');
+          if (gl) {
+            const ext = gl.getExtension('WEBGL_lose_context');
+            if (ext) {
+              ext.loseContext();
+            }
+            gl.getExtension('WEBGL_lose_context')?.loseContext();
+            canvas.width = 1;
+            canvas.height = 1;
+          }
+        });
+      }
     };
   }, []);
 
+  if (!isSupported) {
+    return (
+      <div className="h-[400px] w-full flex items-center justify-center text-white/60">
+        <p>Your browser doesn't support WebGL. Please try a different browser.</p>
+      </div>
+    );
+  }
+
   return (
-    <div className="h-[400px] w-full relative">
+    <div className="h-[400px] w-full relative" ref={containerRef}>
       <Canvas
         camera={{ position: [0, 0, 5], fov: 50 }}
         gl={{ 
           alpha: true, 
           antialias: true,
           preserveDrawingBuffer: true,
-          powerPreference: "high-performance"
+          powerPreference: "high-performance",
+          failIfMajorPerformanceCaveat: true
         }}
-        dpr={[1, 2]} // Optimize for different pixel ratios
-        performance={{ min: 0.5 }} // Allow frame drops for better performance
+        dpr={[1, 2]}
+        legacy={false}
+        onCreated={({ gl }) => {
+          gl.setClearColor(0x000000, 0);
+        }}
       >
         <color attach="background" args={['transparent']} />
         <Suspense fallback={<LoadingFallback />}>
@@ -107,10 +138,13 @@ function Preview3D() {
   );
 }
 
-function FallbackComponent() {
+function FallbackComponent({ error }: { error: Error }) {
   return (
     <div className="h-[400px] w-full flex items-center justify-center text-white/60">
-      <p>3D preview unavailable. Please try again later.</p>
+      <div className="text-center">
+        <p className="mb-2">3D preview unavailable</p>
+        <p className="text-sm opacity-60">{error.message}</p>
+      </div>
     </div>
   );
 }

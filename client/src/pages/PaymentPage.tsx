@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ParticlesBackground } from "../components/ParticlesBackground";
+import { Navigation } from "../components/Navigation";
 import { motion } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
@@ -39,6 +40,7 @@ export default function PaymentPage() {
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-slate-900 via-[#2a0066] to-slate-900">
       <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]" />
       <ParticlesBackground />
+      <Navigation />
       
       <div className="relative container mx-auto px-4 py-24">
         <motion.div

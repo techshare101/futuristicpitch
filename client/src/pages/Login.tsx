@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { ParticlesBackground } from "../components/ParticlesBackground";
+import { Navigation } from "../components/Navigation";
 import { Card } from "@/components/ui/card";
 import { Link, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -56,6 +57,7 @@ export default function Login() {
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-slate-900 via-[#2a0066] to-slate-900">
       <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]" />
       <ParticlesBackground />
+      <Navigation />
       
       <div className="relative container mx-auto px-4 py-24">
         <motion.div
