@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ProductData } from "../pages/Home";
@@ -163,10 +163,14 @@ export function ProductForm({ onSubmit }: ProductFormProps) {
                   name="keyFeatures"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-white">Key Features (comma-separated)</FormLabel>
+                      <FormLabel className="text-white">Key Features/Keywords (comma-separated)</FormLabel>
+                      <FormDescription className="text-white/60">
+                        Include product features, capabilities, and relevant SEO keywords for better visibility
+                      </FormDescription>
                       <FormControl>
                         <Input
                           {...field}
+                          placeholder="e.g., automation, cloud-based, AI-powered, scalable"
                           className="bg-white/5 text-white border-white/20 transition-all duration-300
                           focus:border-pink-400 focus:ring-2 focus:ring-pink-400/20 hover:border-white/40"
                         />
