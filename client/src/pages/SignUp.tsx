@@ -146,10 +146,8 @@ export default function SignUp() {
 
             <p className="mt-6 text-center text-white/60">
               Already have an account?{" "}
-              <Link href="/login">
-                <a className="text-cyan-400 hover:text-cyan-300 transition-colors">
-                  Log in
-                </a>
+              <Link href="/login" className="text-cyan-400 hover:text-cyan-300 transition-colors">
+                Log in
               </Link>
             </p>
           </Card>
