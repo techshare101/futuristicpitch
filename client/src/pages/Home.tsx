@@ -7,6 +7,11 @@ export interface ProductData {
   companyName: string;
   productName: string;
   description: string;
+  companyDescription: string;
+  industryType: string;
+  currentChallenges: string;
+  integrationNeeds: string;
+  budgetRoi: string;
   keyFeatures: string[];
   targetAudience: string;
   uniqueSellingPoint: string;
@@ -30,10 +35,15 @@ export default function Home() {
           {productData && (
             <div className="backdrop-blur-lg bg-white/10 rounded-xl p-6 shadow-xl">
               <Tabs defaultValue="ads" className="w-full">
-                <TabsList className="w-full mb-4">
-                  <TabsTrigger value="ads" className="flex-1">Ads</TabsTrigger>
-                  <TabsTrigger value="blog" className="flex-1">Blog Posts</TabsTrigger>
-                  <TabsTrigger value="social" className="flex-1">Social Media</TabsTrigger>
+                <TabsList className="grid grid-cols-3 lg:grid-cols-4 gap-2 mb-4">
+                  <TabsTrigger value="ads">Ads</TabsTrigger>
+                  <TabsTrigger value="blog">Blog Posts</TabsTrigger>
+                  <TabsTrigger value="social">Social Media</TabsTrigger>
+                  <TabsTrigger value="analysis">Analysis</TabsTrigger>
+                  <TabsTrigger value="features">Features</TabsTrigger>
+                  <TabsTrigger value="case-studies">Case Studies</TabsTrigger>
+                  <TabsTrigger value="integration">Integration</TabsTrigger>
+                  <TabsTrigger value="emotional">Emotional Appeal</TabsTrigger>
                 </TabsList>
                 <TabsContent value="ads">
                   <ContentPreview type="ads" data={productData} />
@@ -43,6 +53,21 @@ export default function Home() {
                 </TabsContent>
                 <TabsContent value="social">
                   <ContentPreview type="social" data={productData} />
+                </TabsContent>
+                <TabsContent value="analysis">
+                  <ContentPreview type="analysis" data={productData} />
+                </TabsContent>
+                <TabsContent value="features">
+                  <ContentPreview type="features" data={productData} />
+                </TabsContent>
+                <TabsContent value="case-studies">
+                  <ContentPreview type="case-studies" data={productData} />
+                </TabsContent>
+                <TabsContent value="integration">
+                  <ContentPreview type="integration" data={productData} />
+                </TabsContent>
+                <TabsContent value="emotional">
+                  <ContentPreview type="emotional" data={productData} />
                 </TabsContent>
               </Tabs>
             </div>

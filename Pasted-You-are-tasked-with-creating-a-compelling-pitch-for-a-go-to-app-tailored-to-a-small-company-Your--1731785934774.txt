@@ -1,0 +1,76 @@
+You are tasked with creating a compelling pitch for a "go-to app" tailored to a small company. Your goal is to craft a pitch that highlights the app's unique value proposition, addresses specific challenges faced by small businesses, and showcases its potential for driving growth and efficiency.
+
+You will be provided with the following input variables:
+<company_name>{{COMPANY_NAME}}</company_name>
+<product_name>{{PRODUCT_NAME}}</product_name>
+<company_description>{{COMPANY_DESCRIPTION}}</company_description>
+
+Using these inputs, follow these steps to create a comprehensive app pitch:
+
+1. Analyze the company description and identify specific challenges that the app can address. Create a <company_challenges> section that outlines these pain points and how the app solves them.
+
+2. Develop a <customization_options> section that highlights how the app can be tailored to the company's specific needs and industry.
+
+3. Create an <roi_analysis> section that demonstrates the potential return on investment for the company, including specific metrics or use cases showing cost savings or revenue growth.
+
+4. List key <user_features> that are particularly relevant to small businesses, focusing on efficiency, automation, and collaboration.
+
+5. Provide one or two brief <case_studies> of similar businesses that have successfully used this type of app.
+
+6. Explain how the app integrates with other tools in a <marketing_integration> section, showcasing its potential to support overall business growth.
+
+7. Craft an <emotional_appeal> section that emphasizes how the app can reduce stress and empower small business owners.
+
+After completing these sections, create the following output formats:
+
+1. Ad Copy: Write a concise, compelling ad copy (50-75 words) that highlights the key benefits of the app for the specific company.
+
+2. Blog Post Outline: Create an outline for a blog post titled "5 Ways {{PRODUCT_NAME}} Transforms {{COMPANY_NAME}}'s Operations" with an introduction, 3-5 key points, and a conclusion.
+
+3. Social Media Post: Write a short, engaging social media post (280 characters or less) promoting the app to small business owners.
+
+Present your final output in the following format:
+
+<app_pitch>
+<company_challenges>
+[Your content here]
+</company_challenges>
+
+<customization_options>
+[Your content here]
+</customization_options>
+
+<roi_analysis>
+[Your content here]
+</roi_analysis>
+
+<user_features>
+[Your content here]
+</user_features>
+
+<case_studies>
+[Your content here]
+</case_studies>
+
+<marketing_integration>
+[Your content here]
+</marketing_integration>
+
+<emotional_appeal>
+[Your content here]
+</emotional_appeal>
+
+<ad_copy>
+[Your ad copy here]
+</ad_copy>
+
+<blog_post_outline>
+[Your blog post outline here]
+</blog_post_outline>
+
+<social_media_post>
+[Your social media post here]
+</social_media_post>
+</app_pitch>
+
+Remember to tailor all content to the specific company and product provided in the input variables. Use a professional yet engaging tone throughout the pitch, and ensure that each section clearly demonstrates the value of the app for small businesses.
