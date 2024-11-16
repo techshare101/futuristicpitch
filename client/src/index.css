@@ -80,3 +80,18 @@ input:focus, textarea:focus {
 ::selection {
   @apply bg-cyan-500/30 text-white;
 }
+
+/* Hide Stripe button logo */
+.stripe-buy-button-no-image .stripe-buy-button__image {
+  display: none !important;
+}
+
+.stripe-buy-button-no-image .stripe-buy-button__item--image {
+  display: none !important;
+}
+
+.stripe-buy-button {
+  --buy-button-theme-headline-color: white !important;
+  --buy-button-theme-price-color: white !important;
+  --buy-button-theme-background-color: transparent !important;
+}
