@@ -274,12 +274,17 @@ export default function Landing() {
               <li>💫 Priority support</li>
               <li>🔮 Advanced customization</li>
             </ul>
-            <stripe-buy-button
-              buy-button-id="buy_btn_1QEbLXGRxp9eu0DJNo9ycVQC"
-              publishable-key="pk_live_51QEaKvGRxp9eu0DJa1y91M5ASVlVE8IauF2fMzlBpH3NvhY01P47d9aIKZ7qcAdETYokGWEZY4zgoHSrB9dGkhKr00N2yvbb8D"
-              class="stripe-buy-button-no-image"
-            >
-            </stripe-buy-button>
+            <Link href="/sign-up">
+              <Button 
+                className="w-full bg-gradient-to-r from-[#ff00ff] via-[#00ffff] to-[#ff00ff] 
+                hover:from-[#ff33ff] hover:via-[#33ffff] hover:to-[#ff33ff] 
+                transition-all duration-300 animate-gradient bg-[length:200%_auto]
+                hover:scale-105 transform shadow-[0_0_20px_rgba(255,0,255,0.5)]
+                hover:shadow-[0_0_30px_rgba(255,0,255,0.7)]"
+              >
+                Get Started
+              </Button>
+            </Link>
           </Card>
         </div>
       </motion.section>

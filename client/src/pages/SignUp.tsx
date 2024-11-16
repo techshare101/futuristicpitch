@@ -11,8 +11,6 @@ import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 
-declare const Stripe: any;
-
 const formSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
@@ -39,48 +37,12 @@ export default function SignUp() {
     try {
       setLoading(true);
       
-      // Create payment element
-      const stripe = await Stripe("pk_live_51QEaKvGRxp9eu0DJa1y91M5ASVlVE8IauF2fMzlBpH3NvhY01P47d9aIKZ7qcAdETYokGWEZY4zgoHSrB9dGkhKr00N2yvbb8D");
-      const elements = stripe.elements();
-      
-      const card = elements.create("card");
-      card.mount("#card-element");
-
-      // Handle payment submission
-      const { paymentMethod } = await stripe.createPaymentMethod({
-        type: "card",
-        card,
-      });
-
-      // Create subscription
-      const response = await fetch("/api/create-subscription", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: values.email,
-          paymentMethod: paymentMethod.id,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to create subscription");
-      }
-
-      const { clientSecret } = await response.json();
-
-      // Confirm the subscription payment
-      const { error } = await stripe.confirmCardPayment(clientSecret);
-      
-      if (error) {
-        throw new Error(error.message);
-      }
-
+      // Here you would typically handle user registration
+      // For now, just show a success message
       toast({
         title: "Success!",
-        description: "Your subscription has been created successfully.",
+        description: "Your account has been created successfully.",
       });
-
-      // Here you would typically create the user account with the provided email/password
       
     } catch (error) {
       toast({
@@ -166,15 +128,6 @@ export default function SignUp() {
                     </FormItem>
                   )}
                 />
-
-                <div className="space-y-4">
-                  <FormLabel className="text-white">Payment Details</FormLabel>
-                  <div
-                    id="card-element"
-                    className="p-3 bg-white/5 text-white border border-white/20 rounded-md transition-all duration-300
-                    focus-within:border-cyan-400 focus-within:ring-2 focus-within:ring-cyan-400/20 hover:border-white/40"
-                  />
-                </div>
 
                 <Button
                   type="submit"

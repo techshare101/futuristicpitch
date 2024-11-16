@@ -9,12 +9,6 @@ import Landing from "./pages/Landing";
 import SignUp from "./pages/SignUp";
 import { Toaster } from "./components/ui/toaster";
 
-// Add Stripe script
-const stripeScript = document.createElement('script');
-stripeScript.src = 'https://js.stripe.com/v3/buy-button.js';
-stripeScript.async = true;
-document.head.appendChild(stripeScript);
-
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <SWRConfig value={{ fetcher }}>
