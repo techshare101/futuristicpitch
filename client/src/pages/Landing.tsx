@@ -135,14 +135,14 @@ export default function Landing() {
                 Start Generating
               </Button>
             </Link>
-            <Link href="/sign-up">
+            <Link href="/generator">
               <Button 
                 variant="outline" 
                 className="border-white/20 text-white hover:bg-white/10 hover:scale-105 transform
                 transition-all duration-300 shadow-[0_0_20px_rgba(0,255,255,0.3)] hover:shadow-[0_0_30px_rgba(0,255,255,0.5)]
                 text-lg py-6 px-8"
               >
-                Sign Up Now
+                Try Now
               </Button>
             </Link>
           </motion.div>
@@ -274,7 +274,7 @@ export default function Landing() {
               <li>💫 Priority support</li>
               <li>🔮 Advanced customization</li>
             </ul>
-            <Link href="/sign-up">
+            <Link href="/generator">
               <Button 
                 className="w-full bg-gradient-to-r from-[#ff00ff] via-[#00ffff] to-[#ff00ff] 
                 hover:from-[#ff33ff] hover:via-[#33ffff] hover:to-[#ff33ff] 
