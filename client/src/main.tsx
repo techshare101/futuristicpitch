@@ -6,6 +6,9 @@ import { SWRConfig } from "swr";
 import { fetcher } from "./lib/fetcher";
 import Home from "./pages/Home";
 import Landing from "./pages/Landing";
+import SignUp from "./pages/SignUp";
+import PaymentPage from "./pages/PaymentPage";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Toaster } from "./components/ui/toaster";
 
 createRoot(document.getElementById("root")!).render(
@@ -13,7 +16,13 @@ createRoot(document.getElementById("root")!).render(
     <SWRConfig value={{ fetcher }}>
       <Switch>
         <Route path="/" component={Landing} />
-        <Route path="/generator" component={Home} />
+        <Route path="/signup" component={SignUp} />
+        <Route path="/payment" component={PaymentPage} />
+        <Route path="/generator">
+          <ProtectedRoute>
+            <Home />
+          </ProtectedRoute>
+        </Route>
         <Route>404 Page Not Found</Route>
       </Switch>
       <Toaster />

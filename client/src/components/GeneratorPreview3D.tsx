@@ -1,6 +1,7 @@
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Float } from "@react-three/drei";
-import { motion } from "framer-motion-3d";
+import { useEffect, useRef } from "react";
+import { ErrorBoundary } from "react-error-boundary";
 
 function Screen() {
   return (
@@ -23,10 +24,29 @@ function Screen() {
   );
 }
 
-export function GeneratorPreview3D() {
+function Preview3D() {
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    // Cleanup function to handle unmounting
+    return () => {
+      if (canvasRef.current) {
+        const gl = canvasRef.current.getContext('webgl2') || canvasRef.current.getContext('webgl');
+        if (gl) {
+          gl.getExtension('WEBGL_lose_context')?.loseContext();
+        }
+      }
+    };
+  }, []);
+
   return (
-    <div className="h-[400px] w-full">
-      <Canvas camera={{ position: [0, 0, 5], fov: 50 }}>
+    <div className="h-[400px] w-full" ref={canvasRef}>
+      <Canvas
+        camera={{ position: [0, 0, 5], fov: 50 }}
+        onCreated={({ gl }) => {
+          gl.setClearColor('#000000', 0);
+        }}
+      >
         <ambientLight intensity={0.5} />
         <pointLight position={[10, 10, 10]} />
         <Float
@@ -44,5 +64,21 @@ export function GeneratorPreview3D() {
         />
       </Canvas>
     </div>
+  );
+}
+
+function FallbackComponent() {
+  return (
+    <div className="h-[400px] w-full flex items-center justify-center text-white/60">
+      <p>3D preview unavailable. Please refresh the page.</p>
+    </div>
+  );
+}
+
+export function GeneratorPreview3D() {
+  return (
+    <ErrorBoundary FallbackComponent={FallbackComponent}>
+      <Preview3D />
+    </ErrorBoundary>
   );
 }

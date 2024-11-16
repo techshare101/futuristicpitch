@@ -125,7 +125,7 @@ export default function Landing() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4, duration: 0.8 }}
           >
-            <Link href="/generator">
+            <Link href="/signup">
               <Button 
                 className="bg-gradient-to-r from-[#ff00ff] via-[#00ffff] to-[#ff00ff] hover:from-[#ff33ff] hover:via-[#33ffff] hover:to-[#ff33ff] 
                 transition-all duration-300 animate-gradient bg-[length:200%_auto] hover:scale-105 transform
@@ -135,7 +135,7 @@ export default function Landing() {
                 Start Generating
               </Button>
             </Link>
-            <Link href="/generator">
+            <Link href="/signup">
               <Button 
                 variant="outline" 
                 className="border-white/20 text-white hover:bg-white/10 hover:scale-105 transform
@@ -274,7 +274,7 @@ export default function Landing() {
               <li>💫 Priority support</li>
               <li>🔮 Advanced customization</li>
             </ul>
-            <Link href="/generator">
+            <Link href="/payment">
               <Button 
                 className="w-full bg-gradient-to-r from-[#ff00ff] via-[#00ffff] to-[#ff00ff] 
                 hover:from-[#ff33ff] hover:via-[#33ffff] hover:to-[#ff33ff] 
