@@ -60,6 +60,8 @@ export default function PaymentPage() {
                   <li>🚀 All content formats</li>
                   <li>💫 Priority support</li>
                   <li>🔮 Advanced customization</li>
+                  <li>🎯 Brand voice control</li>
+                  <li>📈 SEO optimization</li>
                 </ul>
               </div>
 
