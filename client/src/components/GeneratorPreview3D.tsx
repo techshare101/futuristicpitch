@@ -30,17 +30,58 @@ function Screen() {
   );
 }
 
+function LoadingFallback() {
+  return (
+    <mesh>
+      <boxGeometry args={[1, 1, 1]} />
+      <meshStandardMaterial wireframe color="#ff00ff" />
+    </mesh>
+  );
+}
+
+function Scene() {
+  return (
+    <>
+      <ambientLight intensity={0.5} />
+      <pointLight position={[10, 10, 10]} intensity={1.5} />
+      <spotLight 
+        position={[5, 5, 5]} 
+        angle={0.4} 
+        penumbra={1} 
+        intensity={1} 
+        castShadow 
+      />
+      <Float
+        speed={2}
+        rotationIntensity={0.5}
+        floatIntensity={0.5}
+      >
+        <Screen />
+      </Float>
+      <OrbitControls
+        enableZoom={false}
+        enablePan={false}
+        minPolarAngle={Math.PI / 3}
+        maxPolarAngle={Math.PI / 2}
+        autoRotate
+        autoRotateSpeed={1}
+      />
+    </>
+  );
+}
+
 function Preview3D() {
   useEffect(() => {
+    // Cleanup function
     return () => {
-      // Cleanup WebGL context
-      const canvas = document.querySelector('canvas');
-      if (canvas) {
-        const gl = canvas.getContext('webgl');
+      const canvases = document.querySelectorAll('canvas');
+      canvases.forEach(canvas => {
+        const gl = canvas.getContext('webgl') || canvas.getContext('webgl2');
         if (gl) {
-          gl.getExtension('WEBGL_lose_context')?.loseContext();
+          const ext = gl.getExtension('WEBGL_lose_context');
+          if (ext) ext.loseContext();
         }
-      }
+      });
     };
   }, []);
 
@@ -51,35 +92,15 @@ function Preview3D() {
         gl={{ 
           alpha: true, 
           antialias: true,
-          preserveDrawingBuffer: true
+          preserveDrawingBuffer: true,
+          powerPreference: "high-performance"
         }}
+        dpr={[1, 2]} // Optimize for different pixel ratios
+        performance={{ min: 0.5 }} // Allow frame drops for better performance
       >
         <color attach="background" args={['transparent']} />
-        <Suspense fallback={null}>
-          <ambientLight intensity={0.5} />
-          <pointLight position={[10, 10, 10]} intensity={1.5} />
-          <spotLight 
-            position={[5, 5, 5]} 
-            angle={0.4} 
-            penumbra={1} 
-            intensity={1} 
-            castShadow 
-          />
-          <Float
-            speed={2}
-            rotationIntensity={0.5}
-            floatIntensity={0.5}
-          >
-            <Screen />
-          </Float>
-          <OrbitControls
-            enableZoom={false}
-            enablePan={false}
-            minPolarAngle={Math.PI / 3}
-            maxPolarAngle={Math.PI / 2}
-            autoRotate
-            autoRotateSpeed={1}
-          />
+        <Suspense fallback={<LoadingFallback />}>
+          <Scene />
         </Suspense>
       </Canvas>
     </div>
@@ -102,11 +123,16 @@ export function GeneratorPreview3D() {
         console.error('Error in 3D Preview:', error);
       }}
       onReset={() => {
-        // Reset the error boundary state
         window.location.reload();
       }}
     >
-      <Preview3D />
+      <Suspense fallback={
+        <div className="h-[400px] w-full flex items-center justify-center">
+          <div className="text-white/60">Loading 3D preview...</div>
+        </div>
+      }>
+        <Preview3D />
+      </Suspense>
     </ErrorBoundary>
   );
 }
