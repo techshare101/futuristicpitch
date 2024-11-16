@@ -171,6 +171,7 @@ export default function Landing() {
             <stripe-buy-button
               buy-button-id="buy_btn_1QEbLXGRxp9eu0DJNo9ycVQC"
               publishable-key="pk_live_51QEaKvGRxp9eu0DJa1y91M5ASVlVE8IauF2fMzlBpH3NvhY01P47d9aIKZ7qcAdETYokGWEZY4zgoHSrB9dGkhKr00N2yvbb8D"
+              class="stripe-buy-button-no-image"
             >
             </stripe-buy-button>
           </Card>

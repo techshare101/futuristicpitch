@@ -1,4 +1,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Link } from "wouter";
+import { Home as HomeIcon } from "lucide-react";
 import { ProductForm } from "../components/ProductForm";
 import { ContentPreview } from "../components/ContentPreview";
 import { ParticlesBackground } from "../components/ParticlesBackground";
@@ -19,13 +22,24 @@ export interface ProductData {
   uniqueSellingPoint: string;
 }
 
-export default function Home() {
+export default function HomePage() {
   const [productData, setProductData] = useState<ProductData | null>(null);
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-slate-900 via-[#2a0066] to-slate-900">
       <div className="absolute inset-0 bg-[url('/grid.svg')] bg-center [mask-image:linear-gradient(180deg,white,rgba(255,255,255,0))]" />
       <ParticlesBackground />
+      
+      <Link href="/">
+        <Button 
+          variant="ghost" 
+          className="absolute top-4 left-4 text-white hover:bg-white/10"
+        >
+          <HomeIcon className="w-5 h-5 mr-2" />
+          Home
+        </Button>
+      </Link>
+
       <div className="relative container mx-auto px-4 py-12">
         <motion.h1 
           initial={{ opacity: 0, y: -20 }}
