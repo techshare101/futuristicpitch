@@ -1,45 +1,76 @@
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Float } from "@react-three/drei";
 import { ErrorBoundary } from "react-error-boundary";
 import { Suspense, useEffect, useRef, useState } from "react";
+import type { Group } from "three";
 
 function Screen() {
+  const [hovered, setHovered] = useState(false);
+  
   return (
-    <mesh>
-      <boxGeometry args={[3, 2, 0.1]} />
-      <meshStandardMaterial color="#2a0066" metalness={0.6} roughness={0.2} />
-      <mesh position={[0, 0, 0.06]}>
-        <planeGeometry args={[2.8, 1.8]} />
-        <meshBasicMaterial color="#000000" />
+    <group>
+      {/* Main display */}
+      <mesh onPointerEnter={() => setHovered(true)} onPointerLeave={() => setHovered(false)}>
+        <boxGeometry args={[4, 2.5, 0.1]} />
+        <meshStandardMaterial color="#2a0066" metalness={0.8} roughness={0.2} />
+        
+        {/* Content planes with business icons */}
+        <group position={[0, 0, 0.06]} scale={hovered ? 1.1 : 1}>
+          <mesh position={[0, 0.6, 0]}>
+            <planeGeometry args={[3.6, 0.6]} />
+            <meshStandardMaterial 
+              color="#ff00ff"
+              emissive="#ff00ff"
+              emissiveIntensity={0.5}
+              metalness={0.8}
+              roughness={0.2}
+            />
+          </mesh>
+          
+          {/* Business icons in a grid */}
+          {[-1, 0, 1].map((x, i) => (
+            <mesh key={i} position={[x, -0.3, 0]} scale={0.3}>
+              <planeGeometry args={[1, 1]} />
+              <meshBasicMaterial color="#ffffff" transparent opacity={0.8} />
+            </mesh>
+          ))}
+        </group>
       </mesh>
-      <mesh position={[0, 0.6, 0.07]}>
-        <planeGeometry args={[2.6, 0.4]} />
-        <meshStandardMaterial 
-          color="#ff00ff"
-          emissive="#ff00ff"
-          emissiveIntensity={0.5}
-          metalness={0.8}
-          roughness={0.2}
-        />
-      </mesh>
-      <mesh position={[0, 0, 0.07]}>
-        <planeGeometry args={[2.6, 0.8]} />
-        <meshStandardMaterial color="#1a1a1a" metalness={0.5} roughness={0.3} />
-      </mesh>
-    </mesh>
-  );
-}
-
-function LoadingFallback() {
-  return (
-    <mesh>
-      <boxGeometry args={[1, 1, 1]} />
-      <meshStandardMaterial wireframe color="#ff00ff" />
-    </mesh>
+      
+      {/* Floating elements */}
+      <group position={[0, 0, 0.5]}>
+        {[...Array(5)].map((_, i) => (
+          <mesh key={i} position={[
+            Math.sin(i * Math.PI * 0.4) * 2,
+            Math.cos(i * Math.PI * 0.4) * 1.2,
+            i * 0.2
+          ]}>
+            <sphereGeometry args={[0.1, 16, 16]} />
+            <meshStandardMaterial 
+              color="#00ffff"
+              emissive="#00ffff"
+              emissiveIntensity={0.5}
+              metalness={1}
+              roughness={0.2}
+            />
+          </mesh>
+        ))}
+      </group>
+    </group>
   );
 }
 
 function Scene() {
+  const groupRef = useRef<Group>(null);
+  
+  useFrame((state) => {
+    const t = state.clock.getElapsedTime();
+    if (groupRef.current) {
+      groupRef.current.position.z = Math.sin(t * 0.5) * 0.3;
+      groupRef.current.rotation.y = Math.sin(t * 0.2) * 0.2;
+    }
+  });
+
   return (
     <>
       <ambientLight intensity={0.5} />
@@ -56,7 +87,9 @@ function Scene() {
         rotationIntensity={0.5}
         floatIntensity={0.5}
       >
-        <Screen />
+        <group ref={groupRef}>
+          <Screen />
+        </group>
       </Float>
       <OrbitControls
         enableZoom={false}
@@ -70,32 +103,44 @@ function Scene() {
   );
 }
 
+function LoadingFallback() {
+  return (
+    <mesh>
+      <boxGeometry args={[1, 1, 1]} />
+      <meshStandardMaterial wireframe color="#ff00ff" />
+    </mesh>
+  );
+}
+
 function Preview3D() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isSupported, setIsSupported] = useState(true);
+  const [contextError, setContextError] = useState<string | null>(null);
 
   useEffect(() => {
     // Check WebGL support
     const canvas = document.createElement('canvas');
-    const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+    const gl = canvas.getContext('webgl2', { powerPreference: 'high-performance' }) || 
+               canvas.getContext('webgl', { powerPreference: 'high-performance' });
     
     if (!gl) {
       setIsSupported(false);
+      setContextError("WebGL is not supported in your browser");
       return;
     }
 
-    // Cleanup function
+    // Clean up WebGL context
     return () => {
       if (containerRef.current) {
         const canvases = containerRef.current.getElementsByTagName('canvas');
         Array.from(canvases).forEach(canvas => {
           const gl = canvas.getContext('webgl') || canvas.getContext('webgl2');
           if (gl) {
+            // Lose context if possible
             const ext = gl.getExtension('WEBGL_lose_context');
-            if (ext) {
-              ext.loseContext();
-            }
-            gl.getExtension('WEBGL_lose_context')?.loseContext();
+            if (ext) ext.loseContext();
+            
+            // Clear canvas
             canvas.width = 1;
             canvas.height = 1;
           }
@@ -107,7 +152,7 @@ function Preview3D() {
   if (!isSupported) {
     return (
       <div className="h-[400px] w-full flex items-center justify-center text-white/60">
-        <p>Your browser doesn't support WebGL. Please try a different browser.</p>
+        <p>{contextError || "3D preview is not supported in your environment"}</p>
       </div>
     );
   }
@@ -121,13 +166,11 @@ function Preview3D() {
           antialias: true,
           preserveDrawingBuffer: true,
           powerPreference: "high-performance",
-          failIfMajorPerformanceCaveat: true
+          failIfMajorPerformanceCaveat: true,
+          stencil: false
         }}
         dpr={[1, 2]}
         legacy={false}
-        onCreated={({ gl }) => {
-          gl.setClearColor(0x000000, 0);
-        }}
       >
         <color attach="background" args={['transparent']} />
         <Suspense fallback={<LoadingFallback />}>
@@ -144,6 +187,12 @@ function FallbackComponent({ error }: { error: Error }) {
       <div className="text-center">
         <p className="mb-2">3D preview unavailable</p>
         <p className="text-sm opacity-60">{error.message}</p>
+        <button 
+          onClick={() => window.location.reload()}
+          className="mt-4 px-4 py-2 bg-white/10 rounded hover:bg-white/20 transition-colors"
+        >
+          Try Again
+        </button>
       </div>
     </div>
   );
