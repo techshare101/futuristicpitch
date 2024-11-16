@@ -8,6 +8,10 @@ import { Input } from "@/components/ui/input";
 import { ParticlesBackground } from "../components/ParticlesBackground";
 import { Card } from "@/components/ui/card";
 import { Link } from "wouter";
+import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
+
+declare const Stripe: any;
 
 const formSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -19,6 +23,9 @@ const formSchema = z.object({
 });
 
 export default function SignUp() {
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -28,9 +35,62 @@ export default function SignUp() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
-    // Handle sign up logic here
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    try {
+      setLoading(true);
+      
+      // Create payment element
+      const stripe = await Stripe("pk_live_51QEaKvGRxp9eu0DJa1y91M5ASVlVE8IauF2fMzlBpH3NvhY01P47d9aIKZ7qcAdETYokGWEZY4zgoHSrB9dGkhKr00N2yvbb8D");
+      const elements = stripe.elements();
+      
+      const card = elements.create("card");
+      card.mount("#card-element");
+
+      // Handle payment submission
+      const { paymentMethod } = await stripe.createPaymentMethod({
+        type: "card",
+        card,
+      });
+
+      // Create subscription
+      const response = await fetch("/api/create-subscription", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: values.email,
+          paymentMethod: paymentMethod.id,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to create subscription");
+      }
+
+      const { clientSecret } = await response.json();
+
+      // Confirm the subscription payment
+      const { error } = await stripe.confirmCardPayment(clientSecret);
+      
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      toast({
+        title: "Success!",
+        description: "Your subscription has been created successfully.",
+      });
+
+      // Here you would typically create the user account with the provided email/password
+      
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: (error as Error).message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -107,42 +167,24 @@ export default function SignUp() {
                   )}
                 />
 
+                <div className="space-y-4">
+                  <FormLabel className="text-white">Payment Details</FormLabel>
+                  <div
+                    id="card-element"
+                    className="p-3 bg-white/5 text-white border border-white/20 rounded-md transition-all duration-300
+                    focus-within:border-cyan-400 focus-within:ring-2 focus-within:ring-cyan-400/20 hover:border-white/40"
+                  />
+                </div>
+
                 <Button
                   type="submit"
+                  disabled={loading}
                   className="w-full bg-gradient-to-r from-[#ff00ff] via-[#00ffff] to-[#ff00ff] hover:from-[#ff33ff] hover:via-[#33ffff] hover:to-[#ff33ff] transition-all duration-300 animate-gradient"
                 >
-                  Sign Up
+                  {loading ? "Processing..." : "Sign Up"}
                 </Button>
               </form>
             </Form>
-
-            <div className="mt-6 space-y-4">
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-white/20"></div>
-                </div>
-                <div className="relative flex justify-center text-sm">
-                  <span className="px-2 text-white/60 bg-[#2a0066]">Or continue with</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <Button
-                  variant="outline"
-                  className="border-white/20 text-white hover:bg-white/10"
-                  onClick={() => {/* Handle Google OAuth */}}
-                >
-                  Google
-                </Button>
-                <Button
-                  variant="outline"
-                  className="border-white/20 text-white hover:bg-white/10"
-                  onClick={() => {/* Handle GitHub OAuth */}}
-                >
-                  GitHub
-                </Button>
-              </div>
-            </div>
 
             <p className="mt-6 text-center text-white/60">
               Already have an account?{" "}
