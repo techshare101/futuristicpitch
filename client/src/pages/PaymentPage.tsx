@@ -49,12 +49,12 @@ export default function PaymentPage() {
         >
           <Card className="backdrop-blur-xl bg-white/5 border-white/10 p-8 hover:border-white/20 transition-all duration-300 hover:shadow-[0_0_30px_rgba(255,255,255,0.1)]">
             <h1 className="text-3xl font-bold text-center mb-8 bg-clip-text text-transparent bg-gradient-to-r from-[#ff00ff] via-[#00ffff] to-[#ff00ff] animate-gradient">
-              Upgrade to Pro
+              Get Access
             </h1>
 
             <div className="space-y-6">
               <div className="text-white/80 space-y-4">
-                <h2 className="text-xl font-semibold text-white">Pro Features:</h2>
+                <h2 className="text-xl font-semibold text-white">Full Access Features:</h2>
                 <ul className="space-y-2">
                   <li>✨ Unlimited content generation</li>
                   <li>🚀 All content formats</li>
@@ -73,7 +73,7 @@ export default function PaymentPage() {
                 disabled={loading}
                 className="w-full bg-gradient-to-r from-[#ff00ff] via-[#00ffff] to-[#ff00ff] hover:from-[#ff33ff] hover:via-[#33ffff] hover:to-[#ff33ff] transition-all duration-300 animate-gradient"
               >
-                {loading ? "Processing..." : "Upgrade Now"}
+                {loading ? "Processing..." : "Get Access Now"}
               </Button>
             </div>
           </Card>

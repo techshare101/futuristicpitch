@@ -267,7 +267,7 @@ export default function Landing() {
         </h2>
         <div className="max-w-md mx-auto">
           <Card className="backdrop-blur-xl bg-white/5 border-white/10 p-6 hover:border-white/20 transition-all duration-300 hover:shadow-[0_0_30px_rgba(255,255,255,0.1)]">
-            <h3 className="text-2xl font-bold text-white mb-4">Pro Plan</h3>
+            <h3 className="text-2xl font-bold text-white mb-4">Full Access</h3>
             <ul className="text-white/80 space-y-2 mb-6">
               <li>✨ Unlimited content generation</li>
               <li>🚀 All content formats</li>
@@ -282,7 +282,7 @@ export default function Landing() {
                 hover:scale-105 transform shadow-[0_0_20px_rgba(255,0,255,0.5)]
                 hover:shadow-[0_0_30px_rgba(255,0,255,0.7)]"
               >
-                Get Started
+                Get Access
               </Button>
             </Link>
           </Card>
