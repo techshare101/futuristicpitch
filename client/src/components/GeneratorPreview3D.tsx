@@ -1,7 +1,7 @@
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Float } from "@react-three/drei";
 import { ErrorBoundary } from "react-error-boundary";
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
 
 function Screen() {
   return (
@@ -31,11 +31,28 @@ function Screen() {
 }
 
 function Preview3D() {
+  useEffect(() => {
+    return () => {
+      // Cleanup WebGL context
+      const canvas = document.querySelector('canvas');
+      if (canvas) {
+        const gl = canvas.getContext('webgl');
+        if (gl) {
+          gl.getExtension('WEBGL_lose_context')?.loseContext();
+        }
+      }
+    };
+  }, []);
+
   return (
     <div className="h-[400px] w-full relative">
       <Canvas
         camera={{ position: [0, 0, 5], fov: 50 }}
-        gl={{ alpha: true, antialias: true }}
+        gl={{ 
+          alpha: true, 
+          antialias: true,
+          preserveDrawingBuffer: true
+        }}
       >
         <color attach="background" args={['transparent']} />
         <Suspense fallback={null}>
@@ -83,6 +100,10 @@ export function GeneratorPreview3D() {
       FallbackComponent={FallbackComponent}
       onError={(error) => {
         console.error('Error in 3D Preview:', error);
+      }}
+      onReset={() => {
+        // Reset the error boundary state
+        window.location.reload();
       }}
     >
       <Preview3D />
