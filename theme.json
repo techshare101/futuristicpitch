@@ -1,6 +1,15 @@
 {
   "variant": "vibrant",
-  "primary": "hsl(250, 95%, 60%)",
+  "primary": "hsl(286, 95%, 60%)",
+  "secondary": "hsl(180, 100%, 50%)",
+  "accent": "hsl(325, 100%, 60%)",
   "appearance": "dark",
-  "radius": 1.0
+  "radius": 1.2,
+  "neon": {
+    "primary": "hsl(286, 95%, 60%)",
+    "cyan": "hsl(180, 100%, 50%)",
+    "pink": "hsl(325, 100%, 60%)",
+    "purple": "hsl(260, 100%, 60%)",
+    "blue": "hsl(210, 100%, 60%)"
+  }
 }

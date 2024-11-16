@@ -1,3 +1,82 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  body {
+    @apply antialiased;
+  }
+}
+
+@layer utilities {
+  .animate-gradient {
+    animation: gradient 8s linear infinite;
+    background-size: 200% auto;
+  }
+
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+
+  .glassmorphism {
+    @apply backdrop-blur-lg bg-white/5 border border-white/10;
+  }
+}
+
+@keyframes gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-white/10 rounded-full hover:bg-white/20 transition-colors;
+}
+
+/* Accordion animations */
+.accordion-content-enter {
+  max-height: 0;
+  opacity: 0;
+}
+
+.accordion-content-enter-active {
+  max-height: 1000px;
+  opacity: 1;
+  transition: all 0.3s ease-in-out;
+}
+
+.accordion-content-exit {
+  max-height: 1000px;
+  opacity: 1;
+}
+
+.accordion-content-exit-active {
+  max-height: 0;
+  opacity: 0;
+  transition: all 0.3s ease-in-out;
+}
+
+/* Form focus states */
+input:focus, textarea:focus {
+  @apply ring-2 ring-opacity-50 outline-none;
+}
+
+/* Custom selection color */
+::selection {
+  @apply bg-cyan-500/30 text-white;
+}
