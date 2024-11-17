@@ -89,7 +89,7 @@ export default function Projects() {
         }
       },
       revalidateOnFocus: true,
-      refreshInterval: 30000, // Refresh every 30 seconds
+      refreshInterval: 30000,
     }
   );
 
@@ -181,7 +181,6 @@ export default function Projects() {
     setIsDialogOpen(true);
   };
 
-  // Show error state with proper error handling
   if (projectsError) {
     return (
       <div className="container mx-auto py-8">
@@ -202,7 +201,6 @@ export default function Projects() {
     );
   }
 
-  // Show loading state with better UX
   if (!projects) {
     return (
       <div className="container mx-auto py-8">
@@ -231,15 +229,15 @@ export default function Projects() {
               New Project
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="backdrop-blur-xl bg-white/5 border-white/10">
             <DialogHeader>
-              <DialogTitle>
+              <DialogTitle className="text-white">
                 {selectedProject ? 'Edit Project' : 'Create New Project'}
               </DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4 text-white">
               <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
+                <Label htmlFor="name" className="text-white">Name</Label>
                 <Input
                   id="name"
                   value={formData.name}
@@ -248,10 +246,11 @@ export default function Projects() {
                   }
                   required
                   disabled={isSubmitting}
+                  className="bg-white/10 border-white/20 text-white"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="description" className="text-white">Description</Label>
                 <Textarea
                   id="description"
                   value={formData.description}
@@ -259,10 +258,11 @@ export default function Projects() {
                     setFormData({ ...formData, description: e.target.value })
                   }
                   disabled={isSubmitting}
+                  className="bg-white/10 border-white/20 text-white"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="status">Status</Label>
+                <Label htmlFor="status" className="text-white">Status</Label>
                 <Select
                   value={formData.status}
                   onValueChange={(value: 'draft' | 'published' | 'archived') =>
@@ -270,13 +270,13 @@ export default function Projects() {
                   }
                   disabled={isSubmitting}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="bg-white/10 border-white/20 text-white">
                     <SelectValue placeholder="Select status" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="draft">Draft</SelectItem>
-                    <SelectItem value="published">Published</SelectItem>
-                    <SelectItem value="archived">Archived</SelectItem>
+                  <SelectContent className="bg-slate-900 border-white/10">
+                    <SelectItem value="draft" className="text-white">Draft</SelectItem>
+                    <SelectItem value="published" className="text-white">Published</SelectItem>
+                    <SelectItem value="archived" className="text-white">Archived</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -305,20 +305,20 @@ export default function Projects() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {projects.map((project) => (
-            <Card key={project.id}>
+            <Card key={project.id} className="backdrop-blur-xl bg-white/5 border-white/10">
               <CardHeader>
-                <CardTitle>{project.name}</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-white">{project.name}</CardTitle>
+                <CardDescription className="text-white/60">
                   {new Date(project.createdAt).toLocaleDateString()}
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-gray-600">{project.description}</p>
+                <p className="text-sm text-white/80">{project.description}</p>
                 <div className="mt-2">
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                    ${project.status === 'published' ? 'bg-green-100 text-green-800' :
-                      project.status === 'archived' ? 'bg-gray-100 text-gray-800' :
-                        'bg-blue-100 text-blue-800'
+                    ${project.status === 'published' ? 'bg-green-500/20 text-green-200' :
+                      project.status === 'archived' ? 'bg-gray-500/20 text-gray-200' :
+                        'bg-blue-500/20 text-blue-200'
                     }`}>
                     {project.status}
                   </span>
@@ -329,6 +329,7 @@ export default function Projects() {
                   variant="outline"
                   size="icon"
                   onClick={() => openEditDialog(project)}
+                  className="hover:bg-white/10"
                 >
                   <Pencil className="h-4 w-4" />
                 </Button>
@@ -336,6 +337,7 @@ export default function Projects() {
                   variant="outline"
                   size="icon"
                   onClick={() => handleDelete(project.id)}
+                  className="hover:bg-white/10"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
