@@ -8,6 +8,7 @@ import Home from "./pages/Home";
 import Landing from "./pages/Landing";
 import SignUp from "./pages/SignUp";
 import Login from "./pages/Login";
+import Projects from "./pages/Projects";
 import PaymentPage from "./pages/PaymentPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Toaster } from "./components/ui/toaster";
@@ -24,6 +25,11 @@ createRoot(document.getElementById("root")!).render(
         <Route path="/generator">
           <ProtectedRoute>
             <Home />
+          </ProtectedRoute>
+        </Route>
+        <Route path="/projects">
+          <ProtectedRoute>
+            <Projects />
           </ProtectedRoute>
         </Route>
         <Route>
