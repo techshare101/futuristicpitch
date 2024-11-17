@@ -2,10 +2,33 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic } from "./vite";
 import { createServer } from "http";
+import { drizzle } from 'drizzle-orm/node-postgres';
+import pkg from 'pg';
+const { Pool } = pkg;
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Add error handling for database connection
+if (!process.env.DATABASE_URL) {
+  throw new Error('DATABASE_URL environment variable must be set');
+}
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
+
+// Test database connection
+pool.connect()
+  .then(() => console.log('Database connected successfully'))
+  .catch((err) => {
+    console.error('Database connection error:', err);
+    process.exit(1);
+  });
+
+export const db = drizzle(pool);
 
 (async () => {
   registerRoutes(app);
