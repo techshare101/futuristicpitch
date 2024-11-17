@@ -32,11 +32,11 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
         }
         setIsChecking(false);
       } else {
-        // Only redirect to getting-started if we're on the root path
+        // Redirect to generator if we're on the root path
         if (window.location.pathname === "/") {
-          if (lastRedirect !== "/getting-started") {
-            setLastRedirect("/getting-started");
-            setLocation("/getting-started");
+          if (lastRedirect !== "/generator") {
+            setLastRedirect("/generator");
+            setLocation("/generator");
           }
         }
         setIsChecking(false);
