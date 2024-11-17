@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Plus, Pencil, Trash2, AlertCircle } from "lucide-react";
 import useSWR from "swr";
 import {
@@ -56,26 +56,25 @@ type ApiError = {
 };
 
 async function fetchWithAuth(url: string, options: RequestInit = {}) {
-  const token = localStorage.getItem('token');
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      ...options.headers,
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-  });
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        ...options.headers,
+        'Content-Type': 'application/json',
+      },
+    });
 
-  if (response.status === 401) {
-    throw new Error('Unauthorized access. Please log in again.');
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'An error occurred');
+    }
+
+    return response.json();
+  } catch (error) {
+    console.error('API Error:', error);
+    throw error;
   }
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.message || 'An error occurred');
-  }
-
-  return response.json();
 }
 
 export default function Projects() {
@@ -144,6 +143,10 @@ export default function Projects() {
         }
       );
 
+      if (!response) {
+        throw new Error('Failed to create project');
+      }
+
       await mutate();
       setIsDialogOpen(false);
       setSelectedProject(null);
@@ -163,10 +166,6 @@ export default function Projects() {
         description: errorMessage,
         variant: "destructive",
       });
-
-      if (errorMessage.includes('Unauthorized')) {
-        setLocation('/login');
-      }
     } finally {
       setIsSubmitting(false);
     }
@@ -316,7 +315,11 @@ export default function Projects() {
                 </Select>
               </div>
               {formError && (
-                <div className="text-red-400 text-sm">{formError}</div>
+                <Alert variant="destructive" className="mt-4">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Error</AlertTitle>
+                  <AlertDescription>{formError}</AlertDescription>
+                </Alert>
               )}
               <Button
                 type="submit"
