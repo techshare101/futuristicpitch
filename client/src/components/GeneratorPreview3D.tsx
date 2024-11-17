@@ -8,7 +8,6 @@ function Screen() {
   const [hovered, setHovered] = useState(false);
   const { gl } = useThree();
   
-  // Handle WebGL context loss and restoration
   useEffect(() => {
     const handleContextLost = (event: Event) => {
       event.preventDefault();
@@ -32,12 +31,10 @@ function Screen() {
   
   return (
     <group>
-      {/* Main display */}
       <mesh onPointerEnter={() => setHovered(true)} onPointerLeave={() => setHovered(false)}>
         <boxGeometry args={[4, 2.5, 0.1]} />
         <meshStandardMaterial color="#2a0066" metalness={0.8} roughness={0.2} />
         
-        {/* Content planes with business icons */}
         <group position={[0, 0, 0.06]} scale={hovered ? 1.1 : 1}>
           <mesh position={[0, 0.6, 0]}>
             <planeGeometry args={[3.6, 0.6]} />
@@ -47,26 +44,18 @@ function Screen() {
               emissiveIntensity={0.5}
               metalness={0.8}
               roughness={0.2}
-              transparent={true}
-              opacity={1}
             />
           </mesh>
           
-          {/* Business icons in a grid */}
           {[-1, 0, 1].map((x, i) => (
             <mesh key={i} position={[x, -0.3, 0]} scale={0.3}>
               <planeGeometry args={[1, 1]} />
-              <meshBasicMaterial 
-                color="#ffffff" 
-                transparent={true} 
-                opacity={0.8} 
-              />
+              <meshBasicMaterial color="#ffffff" opacity={0.8} transparent />
             </mesh>
           ))}
         </group>
       </mesh>
       
-      {/* Floating elements */}
       <group position={[0, 0, 0.5]}>
         {[...Array(5)].map((_, i) => (
           <mesh key={i} position={[
@@ -81,8 +70,6 @@ function Screen() {
               emissiveIntensity={0.5}
               metalness={1}
               roughness={0.2}
-              transparent={true}
-              opacity={1}
             />
           </mesh>
         ))}
@@ -95,7 +82,6 @@ function Scene() {
   const groupRef = useRef<Group>(null);
   const { gl } = useThree();
   
-  // Clean up WebGL resources
   useEffect(() => {
     return () => {
       gl.dispose();
@@ -167,7 +153,6 @@ function Preview3D() {
             const ext = gl.getExtension('WEBGL_lose_context');
             if (ext) ext.loseContext();
             gl.getExtension('WEBGL_debug_renderer_info');
-            // Clear buffers and dispose
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
             if ('dispose' in gl) {
               (gl as any).dispose();
@@ -193,7 +178,7 @@ function Preview3D() {
         }}
         dpr={[1, 2]}
         onCreated={({ gl }) => {
-          gl.setClearColor(0x000000, 0); // Fixed: Using hex color and alpha value
+          gl.setClearColor(0x000000, 0);
         }}
       >
         <Suspense fallback={<LoadingFallback />}>
