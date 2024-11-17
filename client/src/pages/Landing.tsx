@@ -135,7 +135,7 @@ export default function Landing() {
                 Start Generating
               </Button>
             </Link>
-            <Link href="/payment">
+            <Link href="/signup">
               <Button 
                 variant="outline" 
                 className="border-white/20 text-white hover:bg-white/10 hover:scale-105 transform
