@@ -1,34 +1,53 @@
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import useSWR from "swr";
+import { useLocation } from "wouter";
 
 interface ProtectedRouteProps {
   children: ReactNode;
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  // Keep the state management for future restoration
-  const [isAuthenticated, setIsAuthenticated] = useState(true); // Default to true to bypass auth
-  const [isLoading, setIsLoading] = useState(false); // Set to false to skip loading state
+  const [, setLocation] = useLocation();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Keep the SWR hook for future restoration but don't use its results
   const { data: authStatus, error } = useSWR("/api/auth/status", {
     refreshInterval: 30000,
     revalidateOnFocus: true,
   });
 
-  // Keep the effect for future restoration but make it no-op
   useEffect(() => {
-    // Commented out for temporary bypass
-    // if (authStatus) {
-    //   setIsAuthenticated(authStatus.authenticated);
-    //   setIsLoading(false);
-    // } else if (error) {
-    //   setIsAuthenticated(false);
-    //   setIsLoading(false);
-    // }
-  }, [authStatus, error]);
+    if (authStatus) {
+      if (!authStatus.authenticated) {
+        setLocation('/login');
+      } else if (!authStatus.hasPaid) {
+        setLocation('https://buy.stripe.com/7sI9D75xu8jRcnK289');
+      } else {
+        setIsAuthenticated(true);
+      }
+      setIsLoading(false);
+    } else if (error) {
+      setIsAuthenticated(false);
+      setIsLoading(false);
+      setLocation('/login');
+    }
+  }, [authStatus, error, setLocation]);
 
-  // Directly return children without any checks
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-[#2a0066] to-slate-900">
+        <div className="text-white/60">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white/60 mx-auto mb-4" />
+          Loading...
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return null;
+  }
+
   return <>{children}</>;
 }
