@@ -18,7 +18,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   useEffect(() => {
     if (isChecking && !authError && !paymentError) {
-      // If not authenticated, redirect to login instead of signup
+      // If not authenticated, redirect to login
       if (!authStatus?.authenticated) {
         if (lastRedirect !== "/login") {
           setLastRedirect("/login");

@@ -1,4 +1,4 @@
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, Float } from "@react-three/drei";
 import { ErrorBoundary } from "react-error-boundary";
 import { Suspense, useEffect, useRef, useState } from "react";
@@ -6,6 +6,29 @@ import type { Group } from "three";
 
 function Screen() {
   const [hovered, setHovered] = useState(false);
+  const { gl } = useThree();
+  
+  // Handle WebGL context loss and restoration
+  useEffect(() => {
+    const handleContextLost = (event: Event) => {
+      event.preventDefault();
+      console.log("WebGL context lost");
+    };
+
+    const handleContextRestored = () => {
+      console.log("WebGL context restored");
+      gl.setSize(gl.domElement.width, gl.domElement.height);
+    };
+
+    const canvas = gl.domElement;
+    canvas.addEventListener('webglcontextlost', handleContextLost);
+    canvas.addEventListener('webglcontextrestored', handleContextRestored);
+
+    return () => {
+      canvas.removeEventListener('webglcontextlost', handleContextLost);
+      canvas.removeEventListener('webglcontextrestored', handleContextRestored);
+    };
+  }, [gl]);
   
   return (
     <group>
@@ -24,6 +47,8 @@ function Screen() {
               emissiveIntensity={0.5}
               metalness={0.8}
               roughness={0.2}
+              transparent={true}
+              opacity={1}
             />
           </mesh>
           
@@ -31,7 +56,11 @@ function Screen() {
           {[-1, 0, 1].map((x, i) => (
             <mesh key={i} position={[x, -0.3, 0]} scale={0.3}>
               <planeGeometry args={[1, 1]} />
-              <meshBasicMaterial color="#ffffff" transparent opacity={0.8} />
+              <meshBasicMaterial 
+                color="#ffffff" 
+                transparent={true} 
+                opacity={0.8} 
+              />
             </mesh>
           ))}
         </group>
@@ -52,6 +81,8 @@ function Screen() {
               emissiveIntensity={0.5}
               metalness={1}
               roughness={0.2}
+              transparent={true}
+              opacity={1}
             />
           </mesh>
         ))}
@@ -62,6 +93,14 @@ function Screen() {
 
 function Scene() {
   const groupRef = useRef<Group>(null);
+  const { gl } = useThree();
+  
+  // Clean up WebGL resources
+  useEffect(() => {
+    return () => {
+      gl.dispose();
+    };
+  }, [gl]);
   
   useFrame((state) => {
     const t = state.clock.getElapsedTime();
@@ -128,8 +167,11 @@ function Preview3D() {
             const ext = gl.getExtension('WEBGL_lose_context');
             if (ext) ext.loseContext();
             gl.getExtension('WEBGL_debug_renderer_info');
-            // Clear buffers
+            // Clear buffers and dispose
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+            if ('dispose' in gl) {
+              (gl as any).dispose();
+            }
           }
         });
       }
@@ -150,8 +192,10 @@ function Preview3D() {
           failIfMajorPerformanceCaveat: true
         }}
         dpr={[1, 2]}
+        onCreated={({ gl }) => {
+          gl.setClearColor("rgba(0,0,0,0)", 0);
+        }}
       >
-        <color attach="background" args={['transparent']} />
         <Suspense fallback={<LoadingFallback />}>
           <Scene />
         </Suspense>
