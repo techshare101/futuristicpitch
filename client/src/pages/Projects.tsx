@@ -6,6 +6,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -96,6 +97,7 @@ export default function Projects() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const { toast } = useToast();
 
   const initialFormData: ProjectFormData = {
@@ -106,9 +108,32 @@ export default function Projects() {
 
   const [formData, setFormData] = useState<ProjectFormData>(initialFormData);
 
+  const validateForm = () => {
+    if (!formData.name.trim()) {
+      setFormError("Project name is required");
+      return false;
+    }
+    if (formData.name.length > 100) {
+      setFormError("Project name must be less than 100 characters");
+      return false;
+    }
+    if (formData.description && formData.description.length > 500) {
+      setFormError("Description must be less than 500 characters");
+      return false;
+    }
+    setFormError(null);
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+    
     setIsSubmitting(true);
+    setFormError(null);
     
     try {
       const response = await fetchWithAuth(
@@ -127,9 +152,11 @@ export default function Projects() {
       toast({
         title: selectedProject ? "Project updated" : "Project created",
         description: `Successfully ${selectedProject ? 'updated' : 'created'} project "${formData.name}"`,
+        variant: "default",
       });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+      setFormError(errorMessage);
       
       toast({
         title: "Error",
@@ -155,6 +182,7 @@ export default function Projects() {
       toast({
         title: "Project deleted",
         description: "Successfully deleted the project",
+        variant: "default",
       });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
@@ -178,6 +206,7 @@ export default function Projects() {
       description: project.description,
       status: project.status,
     });
+    setFormError(null);
     setIsDialogOpen(true);
   };
 
@@ -221,6 +250,7 @@ export default function Projects() {
           if (!open) {
             setSelectedProject(null);
             setFormData(initialFormData);
+            setFormError(null);
           }
         }}>
           <DialogTrigger asChild>
@@ -229,13 +259,16 @@ export default function Projects() {
               New Project
             </Button>
           </DialogTrigger>
-          <DialogContent className="backdrop-blur-xl bg-white/5 border-white/10">
+          <DialogContent className="backdrop-blur-xl bg-slate-900/90 border-white/10">
             <DialogHeader>
               <DialogTitle className="text-white">
                 {selectedProject ? 'Edit Project' : 'Create New Project'}
               </DialogTitle>
+              <DialogDescription className="text-white/70">
+                Fill out the details below to {selectedProject ? 'update' : 'create'} your project.
+              </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4 text-white">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name" className="text-white">Name</Label>
                 <Input
@@ -247,6 +280,7 @@ export default function Projects() {
                   required
                   disabled={isSubmitting}
                   className="bg-white/10 border-white/20 text-white"
+                  placeholder="Enter project name"
                 />
               </div>
               <div className="space-y-2">
@@ -259,6 +293,7 @@ export default function Projects() {
                   }
                   disabled={isSubmitting}
                   className="bg-white/10 border-white/20 text-white"
+                  placeholder="Enter project description"
                 />
               </div>
               <div className="space-y-2">
@@ -280,18 +315,23 @@ export default function Projects() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex justify-end">
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? (
-                    <div className="flex items-center">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      {selectedProject ? 'Updating...' : 'Creating...'}
-                    </div>
-                  ) : (
-                    selectedProject ? 'Update' : 'Create'
-                  )}
-                </Button>
-              </div>
+              {formError && (
+                <div className="text-red-400 text-sm">{formError}</div>
+              )}
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full"
+              >
+                {isSubmitting ? (
+                  <div className="flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    {selectedProject ? 'Updating...' : 'Creating...'}
+                  </div>
+                ) : (
+                  selectedProject ? 'Update Project' : 'Create Project'
+                )}
+              </Button>
             </form>
           </DialogContent>
         </Dialog>
@@ -299,8 +339,8 @@ export default function Projects() {
 
       {projects.length === 0 ? (
         <div className="text-center py-12">
-          <h2 className="text-xl font-semibold mb-2">No projects yet</h2>
-          <p className="text-gray-600 mb-4">Create your first project to get started</p>
+          <h2 className="text-xl font-semibold mb-2 text-white">No projects yet</h2>
+          <p className="text-white/60 mb-4">Create your first project to get started</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
