@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, AlertCircle } from "lucide-react";
 import useSWR from "swr";
 import {
   Dialog,
@@ -28,6 +28,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert";
 
 type Project = {
   id: string;
@@ -44,10 +49,15 @@ type ProjectFormData = {
   status: 'draft' | 'published' | 'archived';
 };
 
+type ApiError = {
+  message: string;
+};
+
 export default function Projects() {
-  const { data: projects, mutate } = useSWR<Project[]>('/api/projects');
+  const { data: projects, error: projectsError, mutate } = useSWR<Project[], ApiError>('/api/projects');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
   const initialFormData: ProjectFormData = {
@@ -60,6 +70,7 @@ export default function Projects() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
     try {
       const response = await fetch(
         selectedProject ? `/api/projects/${selectedProject.id}` : '/api/projects',
@@ -74,7 +85,8 @@ export default function Projects() {
       );
 
       if (!response.ok) {
-        throw new Error('Failed to save project');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to save project');
       }
 
       await mutate();
@@ -89,9 +101,11 @@ export default function Projects() {
     } catch (error) {
       toast({
         title: "Error",
-        description: (error as Error).message,
+        description: error instanceof Error ? error.message : 'An unexpected error occurred',
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -105,7 +119,8 @@ export default function Projects() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to delete project');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to delete project');
       }
 
       await mutate();
@@ -116,7 +131,7 @@ export default function Projects() {
     } catch (error) {
       toast({
         title: "Error",
-        description: (error as Error).message,
+        description: error instanceof Error ? error.message : 'An unexpected error occurred',
         variant: "destructive",
       });
     }
@@ -131,6 +146,32 @@ export default function Projects() {
     });
     setIsDialogOpen(true);
   };
+
+  // Show error state
+  if (projectsError) {
+    return (
+      <div className="container mx-auto py-8">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>
+            {projectsError.message || 'Failed to load projects. Please try again later.'}
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  // Show loading state
+  if (!projects) {
+    return (
+      <div className="container mx-auto py-8">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto py-8">
@@ -165,6 +206,7 @@ export default function Projects() {
                     setFormData({ ...formData, name: e.target.value })
                   }
                   required
+                  disabled={isSubmitting}
                 />
               </div>
               <div className="space-y-2">
@@ -175,6 +217,7 @@ export default function Projects() {
                   onChange={(e) =>
                     setFormData({ ...formData, description: e.target.value })
                   }
+                  disabled={isSubmitting}
                 />
               </div>
               <div className="space-y-2">
@@ -184,6 +227,7 @@ export default function Projects() {
                   onValueChange={(value: 'draft' | 'published' | 'archived') =>
                     setFormData({ ...formData, status: value })
                   }
+                  disabled={isSubmitting}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select status" />
@@ -196,8 +240,15 @@ export default function Projects() {
                 </Select>
               </div>
               <div className="flex justify-end">
-                <Button type="submit">
-                  {selectedProject ? 'Update' : 'Create'}
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <div className="flex items-center">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      {selectedProject ? 'Updating...' : 'Creating...'}
+                    </div>
+                  ) : (
+                    selectedProject ? 'Update' : 'Create'
+                  )}
                 </Button>
               </div>
             </form>
@@ -205,42 +256,53 @@ export default function Projects() {
         </Dialog>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {projects?.map((project) => (
-          <Card key={project.id}>
-            <CardHeader>
-              <CardTitle>{project.name}</CardTitle>
-              <CardDescription>
-                {new Date(project.createdAt).toLocaleDateString()}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-gray-600">{project.description}</p>
-              <div className="mt-2">
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                  {project.status}
-                </span>
-              </div>
-            </CardContent>
-            <CardFooter className="flex justify-end space-x-2">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => openEditDialog(project)}
-              >
-                <Pencil className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => handleDelete(project.id)}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-            </CardFooter>
-          </Card>
-        ))}
-      </div>
+      {projects.length === 0 ? (
+        <div className="text-center py-12">
+          <h2 className="text-xl font-semibold mb-2">No projects yet</h2>
+          <p className="text-gray-600 mb-4">Create your first project to get started</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {projects.map((project) => (
+            <Card key={project.id}>
+              <CardHeader>
+                <CardTitle>{project.name}</CardTitle>
+                <CardDescription>
+                  {new Date(project.createdAt).toLocaleDateString()}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-gray-600">{project.description}</p>
+                <div className="mt-2">
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                    ${project.status === 'published' ? 'bg-green-100 text-green-800' :
+                      project.status === 'archived' ? 'bg-gray-100 text-gray-800' :
+                        'bg-blue-100 text-blue-800'
+                    }`}>
+                    {project.status}
+                  </span>
+                </div>
+              </CardContent>
+              <CardFooter className="flex justify-end space-x-2">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => openEditDialog(project)}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => handleDelete(project.id)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
