@@ -113,49 +113,30 @@ function LoadingFallback() {
 }
 
 function Preview3D() {
+  const [mounted, setMounted] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [isSupported, setIsSupported] = useState(true);
-  const [contextError, setContextError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Check WebGL support
-    const canvas = document.createElement('canvas');
-    const gl = canvas.getContext('webgl2', { powerPreference: 'high-performance' }) || 
-               canvas.getContext('webgl', { powerPreference: 'high-performance' });
-    
-    if (!gl) {
-      setIsSupported(false);
-      setContextError("WebGL is not supported in your browser");
-      return;
-    }
-
-    // Clean up WebGL context
+    setMounted(true);
     return () => {
+      setMounted(false);
       if (containerRef.current) {
         const canvases = containerRef.current.getElementsByTagName('canvas');
         Array.from(canvases).forEach(canvas => {
-          const gl = canvas.getContext('webgl') || canvas.getContext('webgl2');
+          const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
           if (gl) {
-            // Lose context if possible
             const ext = gl.getExtension('WEBGL_lose_context');
             if (ext) ext.loseContext();
-            
-            // Clear canvas
-            canvas.width = 1;
-            canvas.height = 1;
+            gl.getExtension('WEBGL_debug_renderer_info');
+            // Clear buffers
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
           }
         });
       }
     };
   }, []);
 
-  if (!isSupported) {
-    return (
-      <div className="h-[400px] w-full flex items-center justify-center text-white/60">
-        <p>{contextError || "3D preview is not supported in your environment"}</p>
-      </div>
-    );
-  }
+  if (!mounted) return null;
 
   return (
     <div className="h-[400px] w-full relative" ref={containerRef}>
@@ -166,11 +147,9 @@ function Preview3D() {
           antialias: true,
           preserveDrawingBuffer: true,
           powerPreference: "high-performance",
-          failIfMajorPerformanceCaveat: true,
-          stencil: false
+          failIfMajorPerformanceCaveat: true
         }}
         dpr={[1, 2]}
-        legacy={false}
       >
         <color attach="background" args={['transparent']} />
         <Suspense fallback={<LoadingFallback />}>
@@ -211,7 +190,10 @@ export function GeneratorPreview3D() {
     >
       <Suspense fallback={
         <div className="h-[400px] w-full flex items-center justify-center">
-          <div className="text-white/60">Loading 3D preview...</div>
+          <div className="text-white/60">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white/60 mx-auto mb-4" />
+            Loading 3D preview...
+          </div>
         </div>
       }>
         <Preview3D />
