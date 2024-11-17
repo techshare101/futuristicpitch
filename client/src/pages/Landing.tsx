@@ -274,7 +274,7 @@ export default function Landing() {
               <li>💫 Priority support</li>
               <li>🔮 Advanced customization</li>
             </ul>
-            <Link href="/payment">
+            <Link href="/signup">
               <Button 
                 className="w-full bg-gradient-to-r from-[#ff00ff] via-[#00ffff] to-[#ff00ff] 
                 hover:from-[#ff33ff] hover:via-[#33ffff] hover:to-[#ff33ff] 
