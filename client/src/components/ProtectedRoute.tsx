@@ -9,6 +9,7 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const [, setLocation] = useLocation();
   const [isChecking, setIsChecking] = useState(true);
+  const [lastRedirect, setLastRedirect] = useState<string | null>(null);
 
   const { data: authStatus, error: authError } = useSWR("/api/auth/status");
   const { data: paymentStatus, error: paymentError } = useSWR(
@@ -17,20 +18,31 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   useEffect(() => {
     if (isChecking && !authError && !paymentError) {
+      // If not authenticated, redirect to login instead of signup
       if (!authStatus?.authenticated) {
-        setLocation("/signup");
+        if (lastRedirect !== "/login") {
+          setLastRedirect("/login");
+          setLocation("/login");
+        }
         setIsChecking(false);
       } else if (!paymentStatus?.paid) {
-        setLocation("/payment");
+        if (lastRedirect !== "/payment") {
+          setLastRedirect("/payment");
+          setLocation("/payment");
+        }
         setIsChecking(false);
       } else {
+        // Only redirect to getting-started if we're on the root path
         if (window.location.pathname === "/") {
-          setLocation("/getting-started");
+          if (lastRedirect !== "/getting-started") {
+            setLastRedirect("/getting-started");
+            setLocation("/getting-started");
+          }
         }
         setIsChecking(false);
       }
     }
-  }, [authStatus, paymentStatus, authError, paymentError, setLocation]);
+  }, [authStatus, paymentStatus, authError, paymentError, setLocation, lastRedirect]);
 
   if (isChecking) {
     return (
