@@ -193,7 +193,7 @@ function Preview3D() {
         }}
         dpr={[1, 2]}
         onCreated={({ gl }) => {
-          gl.setClearColor("rgba(0,0,0,0)", 0);
+          gl.setClearColor(0x000000, 0); // Fixed: Using hex color and alpha value
         }}
       >
         <Suspense fallback={<LoadingFallback />}>
