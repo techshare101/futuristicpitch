@@ -88,4 +88,4 @@ task = "packager.installForAll"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "npx drizzle-kit generate:pg"
+args = "npx drizzle-kit generate"
