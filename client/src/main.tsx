@@ -9,6 +9,7 @@ import Landing from "./pages/Landing";
 import SignUp from "./pages/SignUp";
 import Login from "./pages/Login";
 import Projects from "./pages/Projects";
+import GetStarted from "./pages/GetStarted";
 import PaymentPage from "./pages/PaymentPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { Toaster } from "./components/ui/toaster";
@@ -22,6 +23,11 @@ createRoot(document.getElementById("root")!).render(
         <Route path="/signup" component={SignUp} />
         <Route path="/login" component={Login} />
         <Route path="/payment" component={PaymentPage} />
+        <Route path="/getting-started">
+          <ProtectedRoute>
+            <GetStarted />
+          </ProtectedRoute>
+        </Route>
         <Route path="/generator">
           <ProtectedRoute>
             <Home />
@@ -48,5 +54,5 @@ createRoot(document.getElementById("root")!).render(
       </Switch>
       <Toaster />
     </SWRConfig>
-  </StrictMode>,
+  </StrictMode>
 );

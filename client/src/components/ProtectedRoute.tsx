@@ -24,6 +24,9 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
         setLocation("/payment");
         setIsChecking(false);
       } else {
+        if (window.location.pathname === "/") {
+          setLocation("/getting-started");
+        }
         setIsChecking(false);
       }
     }
