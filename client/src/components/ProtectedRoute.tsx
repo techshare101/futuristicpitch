@@ -22,7 +22,8 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
       if (!authStatus.authenticated) {
         setLocation('/login');
       } else if (!authStatus.hasPaid) {
-        setLocation('https://buy.stripe.com/7sI9D75xu8jRcnK289');
+        // Use window.location.href for external URLs
+        window.location.href = 'https://buy.stripe.com/7sI9D75xu8jRcnK289';
       } else {
         setIsAuthenticated(true);
       }
