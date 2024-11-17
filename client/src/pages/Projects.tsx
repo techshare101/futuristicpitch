@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Pencil, Trash2, AlertCircle } from "lucide-react";
 import useSWR from "swr";
 import {
@@ -33,6 +33,7 @@ import {
   AlertDescription,
   AlertTitle,
 } from "@/components/ui/alert";
+import { useLocation } from "wouter";
 
 type Project = {
   id: string;
@@ -53,8 +54,45 @@ type ApiError = {
   message: string;
 };
 
+async function fetchWithAuth(url: string, options: RequestInit = {}) {
+  const token = localStorage.getItem('token');
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      ...options.headers,
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (response.status === 401) {
+    throw new Error('Unauthorized access. Please log in again.');
+  }
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'An error occurred');
+  }
+
+  return response.json();
+}
+
 export default function Projects() {
-  const { data: projects, error: projectsError, mutate } = useSWR<Project[], ApiError>('/api/projects');
+  const [, setLocation] = useLocation();
+  const { data: projects, error: projectsError, mutate } = useSWR<Project[], ApiError>(
+    '/api/projects',
+    fetchWithAuth,
+    {
+      onError: (error) => {
+        if (error.message.includes('Unauthorized')) {
+          setLocation('/login');
+        }
+      },
+      revalidateOnFocus: true,
+      refreshInterval: 30000, // Refresh every 30 seconds
+    }
+  );
+
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -71,23 +109,15 @@ export default function Projects() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    
     try {
-      const response = await fetch(
+      const response = await fetchWithAuth(
         selectedProject ? `/api/projects/${selectedProject.id}` : '/api/projects',
         {
           method: selectedProject ? 'PUT' : 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          },
           body: JSON.stringify(formData),
         }
       );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to save project');
-      }
 
       await mutate();
       setIsDialogOpen(false);
@@ -99,11 +129,17 @@ export default function Projects() {
         description: `Successfully ${selectedProject ? 'updated' : 'created'} project "${formData.name}"`,
       });
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+      
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : 'An unexpected error occurred',
+        description: errorMessage,
         variant: "destructive",
       });
+
+      if (errorMessage.includes('Unauthorized')) {
+        setLocation('/login');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -111,17 +147,9 @@ export default function Projects() {
 
   const handleDelete = async (id: string) => {
     try {
-      const response = await fetch(`/api/projects/${id}`, {
+      await fetchWithAuth(`/api/projects/${id}`, {
         method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to delete project');
-      }
 
       await mutate();
       toast({
@@ -129,11 +157,17 @@ export default function Projects() {
         description: "Successfully deleted the project",
       });
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred';
+      
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : 'An unexpected error occurred',
+        description: errorMessage,
         variant: "destructive",
       });
+
+      if (errorMessage.includes('Unauthorized')) {
+        setLocation('/login');
+      }
     }
   };
 
@@ -147,7 +181,7 @@ export default function Projects() {
     setIsDialogOpen(true);
   };
 
-  // Show error state
+  // Show error state with proper error handling
   if (projectsError) {
     return (
       <div className="container mx-auto py-8">
@@ -157,17 +191,24 @@ export default function Projects() {
           <AlertDescription>
             {projectsError.message || 'Failed to load projects. Please try again later.'}
           </AlertDescription>
+          <Button 
+            className="mt-4"
+            onClick={() => mutate()}
+          >
+            Retry
+          </Button>
         </Alert>
       </div>
     );
   }
 
-  // Show loading state
+  // Show loading state with better UX
   if (!projects) {
     return (
       <div className="container mx-auto py-8">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+        <div className="flex flex-col items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
+          <p className="text-white/60">Loading your projects...</p>
         </div>
       </div>
     );
