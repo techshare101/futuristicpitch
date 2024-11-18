@@ -21,26 +21,31 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   useEffect(() => {
     let redirectTimeout: NodeJS.Timeout;
-    
+    let mounted = true;
+
     const validateAuth = async () => {
       try {
         const token = getToken();
         
         if (!token) {
           console.log("[ProtectedRoute] No token found");
-          throw new Error("Please log in to access this page");
+          throw new Error("Please log in to continue");
         }
 
-        // Check if token is properly formatted
-        if (!token.startsWith('Bearer ')) {
+        // Validate token format
+        const tokenPart = token.split(' ')[1];
+        const tokenRegex = /^[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.[A-Za-z0-9-_.+/=]*$/;
+        if (!tokenRegex.test(tokenPart)) {
           console.error("[ProtectedRoute] Invalid token format");
           throw new Error("Invalid authentication token");
         }
 
         if (user) {
           console.log("[ProtectedRoute] User authenticated:", user.id);
-          setIsAuthenticated(true);
-          setAuthError(null);
+          if (mounted) {
+            setIsAuthenticated(true);
+            setAuthError(null);
+          }
         } else if (error) {
           console.error("[ProtectedRoute] Auth error:", error);
           throw new Error(error.message || "Authentication failed");
@@ -49,30 +54,39 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
         console.error("[ProtectedRoute] Auth validation error:", err);
         const errorMessage = err instanceof Error ? err.message : "Authentication required";
         
-        setAuthError(errorMessage);
-        setIsAuthenticated(false);
-        
-        toast({
-          title: "Authentication Required",
-          description: errorMessage,
-          variant: "destructive",
-        });
+        if (mounted) {
+          setAuthError(errorMessage);
+          setIsAuthenticated(false);
+          
+          toast({
+            title: "Authentication Required",
+            description: errorMessage,
+            variant: "destructive",
+          });
+        }
 
         // Delayed redirect to improve UX
         redirectTimeout = setTimeout(() => {
-          setLocation('/login', { 
-            replace: true,
-            state: { returnTo: window.location.pathname }
-          });
+          if (mounted) {
+            const currentPath = window.location.pathname;
+            setLocation('/login', { 
+              replace: true,
+              state: { returnTo: currentPath }
+            });
+          }
         }, 2000);
       } finally {
-        setIsLoading(false);
+        if (mounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     validateAuth();
 
+    // Cleanup function
     return () => {
+      mounted = false;
       if (redirectTimeout) {
         clearTimeout(redirectTimeout);
       }

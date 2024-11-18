@@ -3,6 +3,13 @@ import type { User } from "../../types";
 
 const TOKEN_KEY = 'auth_token';
 
+// Utility to validate JWT token format
+const isValidJWT = (token: string): boolean => {
+  const tokenPart = token.startsWith('Bearer ') ? token.split(' ')[1] : token;
+  const tokenRegex = /^[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.[A-Za-z0-9-_.+/=]*$/;
+  return tokenRegex.test(tokenPart);
+};
+
 export function useUser() {
   const { data, error, mutate } = useSWR<User>("/api/auth/status", {
     revalidateOnFocus: false,
@@ -20,6 +27,13 @@ export function useUser() {
       console.error("[useUser] Attempted to store empty token");
       return;
     }
+
+    // Validate token format
+    if (!isValidJWT(token.startsWith('Bearer ') ? token.split(' ')[1] : token)) {
+      console.error("[useUser] Invalid token format");
+      return;
+    }
+
     console.log("[useUser] Storing auth token");
     // Ensure token has Bearer prefix when storing
     const tokenWithPrefix = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
@@ -27,15 +41,32 @@ export function useUser() {
   };
 
   const getToken = () => {
-    const token = localStorage.getItem(TOKEN_KEY);
-    console.log("[useUser] Retrieved token:", token ? "exists" : "not found");
-    if (token && !token.startsWith('Bearer ')) {
-      console.log("[useUser] Adding Bearer prefix to existing token");
-      const tokenWithPrefix = `Bearer ${token}`;
-      localStorage.setItem(TOKEN_KEY, tokenWithPrefix);
-      return tokenWithPrefix;
+    try {
+      const token = localStorage.getItem(TOKEN_KEY);
+      console.log("[useUser] Retrieved token:", token ? "exists" : "not found");
+      
+      if (!token) return null;
+
+      // Validate stored token format
+      if (!isValidJWT(token.startsWith('Bearer ') ? token.split(' ')[1] : token)) {
+        console.error("[useUser] Stored token is invalid, clearing");
+        clearToken();
+        return null;
+      }
+
+      // Ensure Bearer prefix
+      if (!token.startsWith('Bearer ')) {
+        const tokenWithPrefix = `Bearer ${token}`;
+        localStorage.setItem(TOKEN_KEY, tokenWithPrefix);
+        return tokenWithPrefix;
+      }
+
+      return token;
+    } catch (error) {
+      console.error("[useUser] Error retrieving token:", error);
+      clearToken();
+      return null;
     }
-    return token;
   };
 
   const clearToken = () => {
@@ -56,13 +87,14 @@ export function useUser() {
   };
 
   const handleAuthResponse = async (response: Response) => {
-    const data = await response.json();
-    
     if (!response.ok) {
-      console.error("[useUser] Auth request failed:", data.error);
+      const data = await response.json().catch(() => ({}));
+      console.error("[useUser] Auth request failed:", data.error || response.statusText);
       throw new Error(data.error || "Authentication failed");
     }
 
+    const data = await response.json();
+    
     // Check for token refresh
     const newToken = response.headers.get('X-New-Token');
     if (newToken) {
