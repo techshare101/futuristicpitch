@@ -1,6 +1,6 @@
 import useSWR from "swr";
 import type { User } from "../../types";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 
 const TOKEN_KEY = 'auth_token';
 const MAX_RETRIES = 3;
@@ -22,6 +22,7 @@ const validateToken = (token: string | null): TokenValidationResult => {
   console.log("[useUser] Starting token validation");
   
   if (!token) {
+    console.log("[useUser] No token provided for validation");
     return { isValid: false, error: "No token provided" };
   }
 
@@ -44,14 +45,8 @@ const validateToken = (token: string | null): TokenValidationResult => {
     // Validate base64url encoding for each part
     const isValidBase64 = parts.every(part => {
       try {
-        const normalized = part
-          .replace(/-/g, '+')
-          .replace(/_/g, '/');
-        const pad = normalized.length % 4;
-        if (pad) {
-          return normalized + Array(5-pad).join('=');
-        }
-        return normalized;
+        return btoa(atob(part.replace(/-/g, '+').replace(/_/g, '/'))) === 
+               part.replace(/-/g, '+').replace(/_/g, '/');
       } catch {
         return false;
       }
@@ -62,6 +57,7 @@ const validateToken = (token: string | null): TokenValidationResult => {
       return { isValid: false, error: "Invalid token encoding" };
     }
 
+    console.log("[useUser] Token validation successful");
     return { isValid: true };
   } catch (error) {
     console.error("[useUser] Token validation error:", error);
@@ -121,18 +117,19 @@ export function useUser() {
     }
   });
 
-  const setToken = (token: string) => {
+  const setToken = useCallback((token: string) => {
     try {
       if (!token || typeof token !== 'string') {
         throw new Error("Invalid token provided");
       }
 
-      const validationResult = validateToken(ensureBearerPrefix(token));
+      const tokenWithPrefix = ensureBearerPrefix(token);
+      const validationResult = validateToken(tokenWithPrefix);
+      
       if (!validationResult.isValid) {
         throw new Error(validationResult.error || "Token validation failed");
       }
 
-      const tokenWithPrefix = ensureBearerPrefix(token);
       localStorage.setItem(TOKEN_KEY, tokenWithPrefix);
       console.log("[useUser] Token stored successfully");
     } catch (error) {
@@ -140,9 +137,9 @@ export function useUser() {
       clearToken();
       throw error;
     }
-  };
+  }, []);
 
-  const getToken = (): string | null => {
+  const getToken = useCallback((): string | null => {
     try {
       const token = localStorage.getItem(TOKEN_KEY);
       console.log("[useUser] Retrieved token:", token ? "exists" : "not found");
@@ -162,31 +159,36 @@ export function useUser() {
       clearToken();
       return null;
     }
-  };
+  }, []);
 
-  const clearToken = () => {
-    const token = localStorage.getItem(TOKEN_KEY);
-    if (token) {
-      console.log("[useUser] Clearing auth token");
-      localStorage.removeItem(TOKEN_KEY);
+  const clearToken = useCallback(() => {
+    console.log("[useUser] Clearing auth token");
+    localStorage.removeItem(TOKEN_KEY);
+  }, []);
+
+  const refreshToken = useCallback(async () => {
+    if (isRefreshing) {
+      console.log("[useUser] Token refresh already in progress");
+      return;
     }
-  };
-
-  const refreshToken = async () => {
-    if (isRefreshing) return;
     
     try {
       setIsRefreshing(true);
-      const response = await fetch("/api/auth/refresh", {
-        method: "POST",
-        headers: {
-          "Authorization": getToken() || "",
-        },
-      });
+      console.log("[useUser] Starting token refresh");
+      
+      const response = await retryRequest(() =>
+        fetch("/api/auth/refresh", {
+          method: "POST",
+          headers: {
+            "Authorization": getToken() || "",
+          },
+        })
+      );
 
       if (response.ok) {
         const newToken = response.headers.get("X-New-Token");
         if (newToken) {
+          console.log("[useUser] New token received");
           setToken(newToken);
           await mutate();
         }
@@ -196,7 +198,7 @@ export function useUser() {
     } finally {
       setIsRefreshing(false);
     }
-  };
+  }, [isRefreshing, getToken, setToken, mutate]);
 
   return {
     user: data,
@@ -224,6 +226,7 @@ export function useUser() {
           throw new Error("No token received from server");
         }
 
+        console.log("[useUser] Login successful, storing token");
         setToken(data.token);
         await mutate();
         return { ok: true, data };
@@ -239,6 +242,7 @@ export function useUser() {
     },
     logout: async () => {
       try {
+        console.log("[useUser] Initiating logout");
         const token = getToken();
         if (token) {
           await fetch("/api/auth/logout", {
@@ -248,6 +252,7 @@ export function useUser() {
         }
         clearToken();
         await mutate(undefined, { revalidate: false });
+        console.log("[useUser] Logout successful");
         return { ok: true };
       } catch (error) {
         console.error("[useUser] Logout error:", error);
