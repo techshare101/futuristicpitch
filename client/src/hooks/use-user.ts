@@ -17,47 +17,31 @@ interface AuthError extends Error {
   code?: string;
 }
 
-// Enhanced token validation with structured error handling
+// Token validation with improved error handling
 const validateToken = (token: string | null): TokenValidationResult => {
   console.log("[useUser] Starting token validation");
   
   if (!token) {
-    console.log("[useUser] No token provided for validation");
-    return { isValid: false, error: "No token provided" };
+    console.log("[useUser] No token available");
+    return { isValid: false, error: "No token available" };
   }
 
   try {
     // Check Bearer prefix
     if (!token.startsWith('Bearer ')) {
       console.log("[useUser] Token missing Bearer prefix");
-      return { isValid: false, error: "Token missing Bearer prefix" };
+      return { isValid: false, error: "Invalid token format" };
     }
 
     const tokenPart = token.split(' ')[1];
     
-    // Basic JWT structure validation (3 parts)
+    // Validate JWT structure
     const parts = tokenPart.split('.');
     if (parts.length !== 3) {
       console.log("[useUser] Invalid token structure");
-      return { isValid: false, error: "Invalid token structure" };
+      return { isValid: false, error: "Invalid token format" };
     }
 
-    // Validate base64url encoding for each part
-    const isValidBase64 = parts.every(part => {
-      try {
-        return btoa(atob(part.replace(/-/g, '+').replace(/_/g, '/'))) === 
-               part.replace(/-/g, '+').replace(/_/g, '/');
-      } catch {
-        return false;
-      }
-    });
-
-    if (!isValidBase64) {
-      console.log("[useUser] Invalid token encoding");
-      return { isValid: false, error: "Invalid token encoding" };
-    }
-
-    console.log("[useUser] Token validation successful");
     return { isValid: true };
   } catch (error) {
     console.error("[useUser] Token validation error:", error);
@@ -65,30 +49,28 @@ const validateToken = (token: string | null): TokenValidationResult => {
   }
 };
 
-// Helper function to ensure Bearer prefix
+// Ensure consistent Bearer prefix handling
 const ensureBearerPrefix = (token: string): string => {
-  return token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+  const cleanToken = token.replace(/^Bearer\s+/i, '');
+  return `Bearer ${cleanToken}`;
 };
 
-// Retry mechanism for failed requests
+// Request retry mechanism
 const retryRequest = async <T>(
   fn: () => Promise<T>,
   maxRetries: number = MAX_RETRIES,
   delay: number = RETRY_DELAY
 ): Promise<T> => {
-  let lastError: Error;
   for (let i = 0; i < maxRetries; i++) {
     try {
       return await fn();
     } catch (error) {
-      lastError = error as Error;
       console.log(`[useUser] Request attempt ${i + 1} failed:`, error);
-      if (i < maxRetries - 1) {
-        await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
-      }
+      if (i === maxRetries - 1) throw error;
+      await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
     }
   }
-  throw lastError!;
+  throw new Error("Max retries exceeded");
 };
 
 export function useUser() {
@@ -104,7 +86,7 @@ export function useUser() {
       if (err.status === 401 || err.status === 403) {
         const token = getToken();
         if (token) {
-          console.log("[useUser] Token exists but unauthorized, attempting validation");
+          console.log("[useUser] Token exists but unauthorized");
           const validationResult = validateToken(token);
           
           if (!validationResult.isValid || err.code === 'TOKEN_EXPIRED') {
@@ -146,14 +128,17 @@ export function useUser() {
       
       if (!token) return null;
 
-      const validationResult = validateToken(token);
+      // Ensure token has proper format
+      const tokenWithPrefix = ensureBearerPrefix(token);
+      const validationResult = validateToken(tokenWithPrefix);
+      
       if (!validationResult.isValid) {
         console.error("[useUser] Stored token is invalid:", validationResult.error);
         clearToken();
         return null;
       }
 
-      return ensureBearerPrefix(token);
+      return tokenWithPrefix;
     } catch (error) {
       console.error("[useUser] Token retrieval error:", error);
       clearToken();
@@ -176,25 +161,36 @@ export function useUser() {
       setIsRefreshing(true);
       console.log("[useUser] Starting token refresh");
       
+      const token = getToken();
+      if (!token) {
+        throw new Error("No token available for refresh");
+      }
+
       const response = await retryRequest(() =>
         fetch("/api/auth/refresh", {
           method: "POST",
           headers: {
-            "Authorization": getToken() || "",
+            "Authorization": token
           },
         })
       );
 
-      if (response.ok) {
-        const newToken = response.headers.get("X-New-Token");
-        if (newToken) {
-          console.log("[useUser] New token received");
-          setToken(newToken);
-          await mutate();
-        }
+      if (!response.ok) {
+        throw new Error("Token refresh failed");
+      }
+
+      const newToken = response.headers.get("X-New-Token");
+      if (newToken) {
+        console.log("[useUser] New token received");
+        setToken(newToken);
+        await mutate();
       }
     } catch (error) {
       console.error("[useUser] Token refresh failed:", error);
+      if (error instanceof Error && error.message.includes('unauthorized')) {
+        clearToken();
+        await mutate(undefined, { revalidate: false });
+      }
     } finally {
       setIsRefreshing(false);
     }
@@ -226,7 +222,7 @@ export function useUser() {
           throw new Error("No token received from server");
         }
 
-        console.log("[useUser] Login successful, storing token");
+        console.log("[useUser] Login successful");
         setToken(data.token);
         await mutate();
         return { ok: true, data };
