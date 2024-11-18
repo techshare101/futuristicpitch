@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import useSWR from "swr";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import { Loader2 } from "lucide-react";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -42,25 +43,22 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
             });
             setLocation('/login');
             setIsAuthenticated(false);
-          } else if (!authStatus.hasPaid) {
-            console.log("[ProtectedRoute] User not subscribed, redirecting to payment");
-            toast({
-              title: "Subscription required",
-              description: "Please subscribe to access this feature",
-              variant: "destructive",
-            });
-            window.location.href = 'https://buy.stripe.com/7sI9D75xu8jRcnK289';
-            setIsAuthenticated(false);
           } else {
-            console.log("[ProtectedRoute] User authenticated and subscribed");
+            console.log("[ProtectedRoute] User authenticated");
             setIsAuthenticated(true);
           }
           setIsLoading(false);
         }
       } catch (err) {
         console.error("[ProtectedRoute] Error handling auth status:", err);
+        toast({
+          title: "Authentication Error",
+          description: "An error occurred while checking authentication",
+          variant: "destructive",
+        });
         setIsAuthenticated(false);
         setIsLoading(false);
+        setLocation('/login');
       }
     };
 
@@ -84,8 +82,8 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-[#2a0066] to-slate-900">
-        <div className="text-white/60">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white/60 mx-auto mb-4" />
+        <div className="text-white/60 flex flex-col items-center">
+          <Loader2 className="h-8 w-8 animate-spin mb-4" />
           <p>Verifying access...</p>
         </div>
       </div>

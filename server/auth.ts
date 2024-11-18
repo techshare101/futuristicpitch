@@ -24,27 +24,33 @@ const transporter = nodemailer.createTransport({
 });
 
 export async function hashPassword(password: string): Promise<string> {
+  console.log("[Auth] Hashing password");
   const salt = await bcrypt.genSalt(10);
   return bcrypt.hash(password, salt);
 }
 
 export async function comparePasswords(password: string, hashedPassword: string): Promise<boolean> {
+  console.log("[Auth] Comparing passwords");
   return bcrypt.compare(password, hashedPassword);
 }
 
 export function generateToken(userId: string): string {
+  console.log("[Auth] Generating token for user:", userId);
   return jwt.sign({ userId }, JWT_SECRET, { expiresIn: "24h" });
 }
 
 export function verifyToken(token: string): { userId: string } {
+  console.log("[Auth] Verifying token");
   try {
     return jwt.verify(token, JWT_SECRET) as { userId: string };
   } catch (error) {
+    console.error("[Auth] Token verification failed:", error);
     throw new Error("Invalid token");
   }
 }
 
 export async function sendVerificationEmail(email: string, token: string): Promise<void> {
+  console.log("[Auth] Sending verification email to:", email);
   const verificationUrl = `${process.env.APP_URL}/verify-email?token=${token}`;
   
   await transporter.sendMail({
@@ -70,37 +76,53 @@ export async function sendVerificationEmail(email: string, token: string): Promi
       </div>
     `,
   });
+  console.log("[Auth] Verification email sent successfully");
 }
 
 export async function createUser(email: string, password: string): Promise<{ id: string, verificationToken: string }> {
+  console.log("[Auth] Creating new user with email:", email);
   const hashedPassword = await hashPassword(password);
   const verificationToken = uuidv4();
   const userId = uuidv4();
 
-  await db.insert(users).values({
-    id: userId,
-    email,
-    hashedPassword,
-    verificationToken,
-    emailVerified: false,
-  });
+  try {
+    await db.insert(users).values({
+      id: userId,
+      email,
+      hashedPassword,
+      verificationToken,
+      emailVerified: false,
+    });
 
-  return { id: userId, verificationToken };
+    console.log("[Auth] User created successfully with ID:", userId);
+    return { id: userId, verificationToken };
+  } catch (error) {
+    console.error("[Auth] Error creating user:", error);
+    throw error;
+  }
 }
 
 export async function verifyEmail(token: string): Promise<boolean> {
-  const user = await db.query.users.findFirst({
-    where: eq(users.verificationToken, token),
-  });
+  console.log("[Auth] Verifying email with token");
+  try {
+    const user = await db.query.users.findFirst({
+      where: eq(users.verificationToken, token),
+    });
 
-  if (!user) {
-    return false;
+    if (!user) {
+      console.log("[Auth] No user found with verification token");
+      return false;
+    }
+
+    await db
+      .update(users)
+      .set({ emailVerified: true, verificationToken: null })
+      .where(eq(users.id, user.id));
+
+    console.log("[Auth] Email verified successfully for user:", user.id);
+    return true;
+  } catch (error) {
+    console.error("[Auth] Error verifying email:", error);
+    throw error;
   }
-
-  await db
-    .update(users)
-    .set({ emailVerified: true, verificationToken: null })
-    .where(eq(users.id, user.id));
-
-  return true;
 }
