@@ -15,8 +15,9 @@ const SMTP_PASS = process.env.SMTP_PASS;
 
 const TOKEN_EXPIRY = "24h";
 const TOKEN_REFRESH_THRESHOLD = 60 * 60; // 1 hour in seconds
+const TOKEN_BLACKLIST = new Set<string>();
 
-// Email transporter configuration...
+// Email transporter configuration
 const transporter = nodemailer.createTransport({
   host: SMTP_HOST,
   port: SMTP_PORT,
@@ -42,19 +43,38 @@ export function generateToken(userId: string): string {
   console.log("[Auth] Generating token for user:", userId);
   return jwt.sign({ userId }, JWT_SECRET, { 
     expiresIn: TOKEN_EXPIRY,
-    algorithm: 'HS256'
+    algorithm: 'HS256',
+    issuer: 'product-pitch-generator',
+    audience: 'client'
   });
 }
 
 export function verifyToken(token: string): { userId: string; isNearExpiry: boolean } {
   console.log("[Auth] Verifying token");
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { 
+    // Check if token is blacklisted
+    if (TOKEN_BLACKLIST.has(token)) {
+      console.error("[Auth] Token is blacklisted");
+      throw new Error("Token has been invalidated");
+    }
+
+    const decoded = jwt.verify(token, JWT_SECRET, {
+      algorithms: ['HS256'],
+      issuer: 'product-pitch-generator',
+      audience: 'client'
+    }) as { 
       userId: string; 
       exp: number; 
-      iat: number 
+      iat: number;
+      aud: string;
+      iss: string;
     };
     
+    // Validate token claims
+    if (!decoded.userId || !decoded.exp || !decoded.iat) {
+      throw new Error("Invalid token claims");
+    }
+
     // Check token expiration
     const now = Math.floor(Date.now() / 1000);
     if (decoded.exp <= now) {
@@ -65,7 +85,7 @@ export function verifyToken(token: string): { userId: string; isNearExpiry: bool
     // Check if token is near expiry
     const isNearExpiry = decoded.exp - now <= TOKEN_REFRESH_THRESHOLD;
     if (isNearExpiry) {
-      console.log("[Auth] Token is near expiry");
+      console.log("[Auth] Token is near expiry, will refresh");
     }
 
     return { userId: decoded.userId, isNearExpiry };
@@ -76,8 +96,14 @@ export function verifyToken(token: string): { userId: string; isNearExpiry: bool
     } else if (error instanceof jwt.JsonWebTokenError) {
       throw new Error("Invalid token format or signature");
     }
-    throw new Error("Token validation failed");
+    throw error;
   }
+}
+
+export function invalidateToken(token: string): void {
+  TOKEN_BLACKLIST.add(token);
+  // Cleanup old tokens from blacklist periodically
+  setTimeout(() => TOKEN_BLACKLIST.delete(token), parseInt(TOKEN_EXPIRY) * 1000);
 }
 
 export async function authenticateUser(req: Request, res: Response, next: NextFunction) {
@@ -86,19 +112,28 @@ export async function authenticateUser(req: Request, res: Response, next: NextFu
     
     if (!authHeader) {
       console.error("[Auth] No authorization header");
-      return res.status(401).json({ error: "No authorization header provided" });
+      return res.status(401).json({ 
+        error: "No authorization header provided",
+        code: "NO_AUTH_HEADER"
+      });
     }
 
     if (!authHeader.startsWith('Bearer ')) {
       console.error("[Auth] Invalid authorization format");
-      return res.status(401).json({ error: "Invalid authorization format - Bearer token required" });
+      return res.status(401).json({ 
+        error: "Invalid authorization format - Bearer token required",
+        code: "INVALID_AUTH_FORMAT"
+      });
     }
 
     const token = authHeader.split(' ')[1];
     
     if (!token) {
       console.error("[Auth] No token provided");
-      return res.status(401).json({ error: "No token provided" });
+      return res.status(401).json({ 
+        error: "No token provided",
+        code: "NO_TOKEN"
+      });
     }
 
     const { userId, isNearExpiry } = verifyToken(token);
@@ -109,12 +144,18 @@ export async function authenticateUser(req: Request, res: Response, next: NextFu
 
     if (!user) {
       console.error("[Auth] User not found:", userId);
-      return res.status(401).json({ error: "User not found or deleted" });
+      return res.status(401).json({ 
+        error: "User not found or deleted",
+        code: "USER_NOT_FOUND"
+      });
     }
 
     if (!user.emailVerified) {
       console.error("[Auth] Email not verified for user:", userId);
-      return res.status(403).json({ error: "Email not verified" });
+      return res.status(403).json({ 
+        error: "Email not verified",
+        code: "EMAIL_NOT_VERIFIED"
+      });
     }
 
     // Add user to request object
@@ -124,6 +165,7 @@ export async function authenticateUser(req: Request, res: Response, next: NextFu
     if (isNearExpiry) {
       const newToken = generateToken(userId);
       res.setHeader('X-New-Token', newToken);
+      console.log("[Auth] New token generated for near-expiry token");
     }
 
     next();
@@ -131,11 +173,26 @@ export async function authenticateUser(req: Request, res: Response, next: NextFu
     console.error("[Auth] Authentication error:", error);
     if (error instanceof Error) {
       if (error.message.includes('expired')) {
-        return res.status(401).json({ error: "Token has expired", code: "TOKEN_EXPIRED" });
+        return res.status(401).json({ 
+          error: "Token has expired", 
+          code: "TOKEN_EXPIRED" 
+        });
       }
-      res.status(401).json({ error: error.message });
+      if (error.message.includes('blacklisted')) {
+        return res.status(401).json({ 
+          error: "Token has been invalidated", 
+          code: "TOKEN_INVALIDATED" 
+        });
+      }
+      res.status(401).json({ 
+        error: error.message,
+        code: "AUTH_ERROR"
+      });
     } else {
-      res.status(401).json({ error: "Authentication failed" });
+      res.status(401).json({ 
+        error: "Authentication failed",
+        code: "AUTH_FAILED"
+      });
     }
   }
 }

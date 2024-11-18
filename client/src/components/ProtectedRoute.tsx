@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import type { ReactNode } from "react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -17,86 +17,119 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const redirectInProgress = useRef(false);
+  const authCheckInProgress = useRef(false);
+  const unmounted = useRef(false);
+  const redirectTimeout = useRef<NodeJS.Timeout>();
   const { toast } = useToast();
-  const { user, error, getToken } = useUser();
+  const { user, error, getToken, refreshToken } = useUser();
 
-  // Handle redirect with debouncing
-  const handleRedirect = (path: string, state?: any) => {
-    if (redirectInProgress.current) {
-      console.log("[ProtectedRoute] Redirect already in progress, skipping");
+  // Handle redirect with debouncing and tracking
+  const handleRedirect = useCallback((path: string, state?: any) => {
+    if (redirectInProgress.current || unmounted.current) {
+      console.log("[ProtectedRoute] Redirect already in progress or component unmounted, skipping");
       return;
     }
 
     redirectInProgress.current = true;
     console.log("[ProtectedRoute] Initiating redirect to:", path);
     
-    setLocation(path, state);
+    // Clear any existing redirect timeout
+    if (redirectTimeout.current) {
+      clearTimeout(redirectTimeout.current);
+    }
+
+    // Set a new redirect timeout
+    redirectTimeout.current = setTimeout(() => {
+      if (!unmounted.current) {
+        setLocation(path, state);
+        
+        // Reset redirect flag after navigation
+        setTimeout(() => {
+          redirectInProgress.current = false;
+        }, 1000);
+      }
+    }, 100);
+  }, [setLocation]);
+
+  // Authentication check with retry mechanism
+  const checkAuthentication = useCallback(async () => {
+    if (authCheckInProgress.current || unmounted.current) {
+      return;
+    }
+
+    authCheckInProgress.current = true;
     
-    // Reset redirect flag after a delay
-    setTimeout(() => {
-      redirectInProgress.current = false;
-    }, 2000);
-  };
+    try {
+      const token = getToken();
+      console.log("[ProtectedRoute] Validating authentication");
+      
+      if (!token) {
+        throw new Error("Please log in to continue");
+      }
+
+      if (user) {
+        console.log("[ProtectedRoute] User authenticated:", user.id);
+        setIsAuthenticated(true);
+        setAuthError(null);
+
+        // Check if token needs refresh
+        await refreshToken();
+      } else if (error) {
+        console.error("[ProtectedRoute] Auth error:", error);
+        throw error;
+      }
+    } catch (err) {
+      if (unmounted.current) return;
+
+      const errorMessage = err instanceof Error ? err.message : "Authentication required";
+      console.error("[ProtectedRoute] Auth validation error:", { message: errorMessage });
+      
+      setAuthError(errorMessage);
+      setIsAuthenticated(false);
+      
+      toast({
+        title: "Authentication Required",
+        description: errorMessage,
+        variant: "destructive",
+      });
+
+      const currentPath = window.location.pathname;
+      if (currentPath !== '/login') {
+        handleRedirect('/login', { 
+          replace: true,
+          state: { returnTo: currentPath }
+        });
+      }
+    } finally {
+      if (!unmounted.current) {
+        setIsLoading(false);
+        authCheckInProgress.current = false;
+      }
+    }
+  }, [user, error, getToken, refreshToken, handleRedirect, toast]);
 
   useEffect(() => {
-    let mounted = true;
+    unmounted.current = false;
     console.log("[ProtectedRoute] Component mounted");
 
-    const validateAuth = async () => {
-      try {
-        const token = getToken();
-        console.log("[ProtectedRoute] Validating authentication");
-        
-        if (!token) {
-          throw new Error("Please log in to continue");
-        }
-
-        if (user) {
-          if (mounted) {
-            console.log("[ProtectedRoute] User authenticated:", user.id);
-            setIsAuthenticated(true);
-            setAuthError(null);
-          }
-        } else if (error) {
-          console.error("[ProtectedRoute] Auth error:", error);
-          throw error;
-        }
-      } catch (err) {
-        if (!mounted) return;
-
-        const errorMessage = err instanceof Error ? err.message : "Authentication required";
-        console.error("[ProtectedRoute] Auth validation error:", { message: errorMessage });
-        
-        setAuthError(errorMessage);
-        setIsAuthenticated(false);
-        
-        toast({
-          title: "Authentication Required",
-          description: errorMessage,
-          variant: "destructive",
-        });
-
-        const currentPath = window.location.pathname;
-        if (currentPath !== '/login') {
-          handleRedirect('/login', { 
-            replace: true,
-            state: { returnTo: currentPath }
-          });
-        }
-      } finally {
-        if (mounted) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    validateAuth();
+    checkAuthentication();
 
     return () => {
-      mounted = false;
+      unmounted.current = true;
       console.log("[ProtectedRoute] Component unmounted");
+      
+      if (redirectTimeout.current) {
+        clearTimeout(redirectTimeout.current);
+      }
     };
-  }, [user, error, setLocation, toast, getToken]);
+  }, [checkAuthentication]);
+
+  // Effect to handle authentication state changes
+  useEffect(() => {
+    if (!isLoading && !unmounted.current) {
+      checkAuthentication();
+    }
+  }, [user, error, checkAuthentication, isLoading]);
 
   if (isLoading) {
     return (

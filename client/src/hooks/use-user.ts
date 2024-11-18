@@ -1,21 +1,27 @@
 import useSWR from "swr";
 import type { User } from "../../types";
+import { useState } from "react";
 
 const TOKEN_KEY = 'auth_token';
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 1000; // 1 second
+const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
 interface TokenValidationResult {
   isValid: boolean;
   error?: string;
 }
 
-// Utility to validate JWT token format with detailed logging
+interface AuthError extends Error {
+  status?: number;
+  code?: string;
+}
+
+// Enhanced token validation with structured error handling
 const validateToken = (token: string | null): TokenValidationResult => {
   console.log("[useUser] Starting token validation");
   
   if (!token) {
-    console.log("[useUser] No token provided for validation");
     return { isValid: false, error: "No token provided" };
   }
 
@@ -28,18 +34,24 @@ const validateToken = (token: string | null): TokenValidationResult => {
 
     const tokenPart = token.split(' ')[1];
     
-    // Check basic JWT structure (3 parts separated by dots)
+    // Basic JWT structure validation (3 parts)
     const parts = tokenPart.split('.');
     if (parts.length !== 3) {
       console.log("[useUser] Invalid token structure");
       return { isValid: false, error: "Invalid token structure" };
     }
 
-    // Validate each part is properly base64url encoded
+    // Validate base64url encoding for each part
     const isValidBase64 = parts.every(part => {
       try {
-        return btoa(atob(part.replace(/-/g, '+').replace(/_/g, '/'))) === 
-               part.replace(/-/g, '+').replace(/_/g, '/');
+        const normalized = part
+          .replace(/-/g, '+')
+          .replace(/_/g, '/');
+        const pad = normalized.length % 4;
+        if (pad) {
+          return normalized + Array(5-pad).join('=');
+        }
+        return normalized;
       } catch {
         return false;
       }
@@ -50,7 +62,6 @@ const validateToken = (token: string | null): TokenValidationResult => {
       return { isValid: false, error: "Invalid token encoding" };
     }
 
-    console.log("[useUser] Token validation successful");
     return { isValid: true };
   } catch (error) {
     console.error("[useUser] Token validation error:", error);
@@ -58,28 +69,54 @@ const validateToken = (token: string | null): TokenValidationResult => {
   }
 };
 
-// Utility to ensure Bearer prefix
+// Helper function to ensure Bearer prefix
 const ensureBearerPrefix = (token: string): string => {
   return token.startsWith('Bearer ') ? token : `Bearer ${token}`;
 };
 
+// Retry mechanism for failed requests
+const retryRequest = async <T>(
+  fn: () => Promise<T>,
+  maxRetries: number = MAX_RETRIES,
+  delay: number = RETRY_DELAY
+): Promise<T> => {
+  let lastError: Error;
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error as Error;
+      console.log(`[useUser] Request attempt ${i + 1} failed:`, error);
+      if (i < maxRetries - 1) {
+        await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
+      }
+    }
+  }
+  throw lastError!;
+};
+
 export function useUser() {
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
   const { data, error, mutate } = useSWR<User>("/api/auth/status", {
     revalidateOnFocus: false,
+    refreshInterval: REFRESH_INTERVAL,
     shouldRetryOnError: false,
-    onError: async (err) => {
+    onError: async (err: AuthError) => {
       console.error("[useUser] Auth error:", err);
+      
       if (err.status === 401 || err.status === 403) {
         const token = getToken();
         if (token) {
           console.log("[useUser] Token exists but unauthorized, attempting validation");
           const validationResult = validateToken(token);
-          if (!validationResult.isValid) {
-            console.log("[useUser] Token validation failed, clearing token");
+          
+          if (!validationResult.isValid || err.code === 'TOKEN_EXPIRED') {
+            console.log("[useUser] Token invalid or expired, clearing");
             clearToken();
+            await mutate(undefined, { revalidate: false });
           }
         }
-        await mutate(undefined, { revalidate: false });
       }
     }
   });
@@ -135,19 +172,29 @@ export function useUser() {
     }
   };
 
-  const retryRequest = async (
-    fn: () => Promise<any>,
-    retries = MAX_RETRIES
-  ): Promise<any> => {
+  const refreshToken = async () => {
+    if (isRefreshing) return;
+    
     try {
-      return await fn();
-    } catch (error) {
-      if (retries > 0) {
-        console.log(`[useUser] Retrying request, ${retries} attempts remaining`);
-        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
-        return retryRequest(fn, retries - 1);
+      setIsRefreshing(true);
+      const response = await fetch("/api/auth/refresh", {
+        method: "POST",
+        headers: {
+          "Authorization": getToken() || "",
+        },
+      });
+
+      if (response.ok) {
+        const newToken = response.headers.get("X-New-Token");
+        if (newToken) {
+          setToken(newToken);
+          await mutate();
+        }
       }
-      throw error;
+    } catch (error) {
+      console.error("[useUser] Token refresh failed:", error);
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -192,6 +239,13 @@ export function useUser() {
     },
     logout: async () => {
       try {
+        const token = getToken();
+        if (token) {
+          await fetch("/api/auth/logout", {
+            method: "POST",
+            headers: { "Authorization": token }
+          });
+        }
         clearToken();
         await mutate(undefined, { revalidate: false });
         return { ok: true };
@@ -203,5 +257,6 @@ export function useUser() {
         };
       }
     },
+    refreshToken,
   };
 }
