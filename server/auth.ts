@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from "uuid";
 import { db } from "../db";
 import { users } from "../db/schema";
 import { eq } from "drizzle-orm";
+import type { Request, Response, NextFunction } from "express";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-jwt-secret";
 const SMTP_HOST = process.env.SMTP_HOST || "smtp.gmail.com";
@@ -46,6 +47,35 @@ export function verifyToken(token: string): { userId: string } {
   } catch (error) {
     console.error("[Auth] Token verification failed:", error);
     throw new Error("Invalid token");
+  }
+}
+
+// Authentication middleware
+export async function authenticateUser(req: Request, res: Response, next: NextFunction) {
+  try {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader?.startsWith('Bearer ')) {
+      return res.status(401).json({ error: "No token provided" });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const decoded = verifyToken(token);
+    
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, decoded.userId),
+    });
+
+    if (!user) {
+      return res.status(401).json({ error: "User not found" });
+    }
+
+    // Add user to request object
+    (req as any).user = user;
+    next();
+  } catch (error) {
+    console.error("[Auth] Authentication error:", error);
+    res.status(401).json({ error: "Invalid authentication token" });
   }
 }
 

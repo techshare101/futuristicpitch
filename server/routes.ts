@@ -1,5 +1,5 @@
 import type { Express } from "express";
-import { createUser, verifyEmail, generateToken } from "./auth";
+import { createUser, verifyEmail, generateToken, authenticateUser } from "./auth";
 import { signUpSchema, verifyEmailSchema, projectSchema } from "../db/schema";
 import { db } from "../db";
 import { users, projects } from "../db/schema";
@@ -14,23 +14,37 @@ export function registerRoutes(app: Express) {
   });
 
   // Authentication status endpoint
-  app.get("/api/auth/status", async (req, res) => {
+  app.get("/api/auth/status", authenticateUser, async (req, res) => {
     try {
-      // Temporarily bypass auth check
-      res.json({ authenticated: true, emailVerified: true });
+      const user = (req as any).user;
+      res.json({
+        authenticated: true,
+        emailVerified: user.emailVerified,
+        userId: user.id,
+        email: user.email
+      });
     } catch (error) {
       console.error("[Routes] Auth status error:", error);
-      res.status(500).json({ error: "Internal server error" });
+      res.status(401).json({
+        authenticated: false,
+        error: "Authentication required"
+      });
     }
   });
 
   // Projects CRUD endpoints with enhanced error handling and logging
-  app.get("/api/projects", async (req, res) => {
+  app.get("/api/projects", authenticateUser, async (req, res) => {
     try {
-      console.log("[Routes] Fetching all projects");
-      const allProjects = await db.select().from(projects);
-      console.log(`[Routes] Successfully fetched ${allProjects.length} projects`);
-      res.json(allProjects);
+      const user = (req as any).user;
+      console.log("[Routes] Fetching projects for user:", user.id);
+      
+      const userProjects = await db
+        .select()
+        .from(projects)
+        .where(eq(projects.userId, user.id));
+      
+      console.log(`[Routes] Successfully fetched ${userProjects.length} projects`);
+      res.json(userProjects);
     } catch (error) {
       console.error("[Routes] Error fetching projects:", error);
       res.status(500).json({ 
@@ -40,14 +54,16 @@ export function registerRoutes(app: Express) {
     }
   });
 
-  app.post("/api/projects", async (req, res) => {
+  app.post("/api/projects", authenticateUser, async (req, res) => {
     try {
-      console.log("[Routes] Creating new project");
+      const user = (req as any).user;
+      console.log("[Routes] Creating new project for user:", user.id);
+      
       const projectData = projectSchema.parse(req.body);
       
       const newProject = await db.insert(projects).values({
         id: uuidv4(),
-        userId: "temp-user", // Temporary userId for bypass
+        userId: user.id,
         ...projectData,
       }).returning();
 
@@ -68,10 +84,12 @@ export function registerRoutes(app: Express) {
     }
   });
 
-  app.put("/api/projects/:id", async (req, res) => {
+  app.put("/api/projects/:id", authenticateUser, async (req, res) => {
     const { id } = req.params;
     try {
-      console.log(`[Routes] Updating project: ${id}`);
+      const user = (req as any).user;
+      console.log(`[Routes] Updating project: ${id} for user: ${user.id}`);
+      
       const projectData = projectSchema.parse(req.body);
       
       const project = await db.query.projects.findFirst({
@@ -81,6 +99,10 @@ export function registerRoutes(app: Express) {
       if (!project) {
         console.log(`[Routes] Project not found: ${id}`);
         return res.status(404).json({ error: "Project not found" });
+      }
+
+      if (project.userId !== user.id) {
+        return res.status(403).json({ error: "Not authorized to update this project" });
       }
 
       const updatedProject = await db.update(projects)
@@ -105,10 +127,12 @@ export function registerRoutes(app: Express) {
     }
   });
 
-  app.delete("/api/projects/:id", async (req, res) => {
+  app.delete("/api/projects/:id", authenticateUser, async (req, res) => {
     const { id } = req.params;
     try {
-      console.log(`[Routes] Deleting project: ${id}`);
+      const user = (req as any).user;
+      console.log(`[Routes] Deleting project: ${id} for user: ${user.id}`);
+      
       const project = await db.query.projects.findFirst({
         where: eq(projects.id, id),
       });
@@ -116,6 +140,10 @@ export function registerRoutes(app: Express) {
       if (!project) {
         console.log(`[Routes] Project not found: ${id}`);
         return res.status(404).json({ error: "Project not found" });
+      }
+
+      if (project.userId !== user.id) {
+        return res.status(403).json({ error: "Not authorized to delete this project" });
       }
 
       await db.delete(projects).where(eq(projects.id, id));
@@ -165,6 +193,27 @@ export function registerRoutes(app: Express) {
       res.json({ message: "Email verified successfully" });
     } catch (error) {
       console.error("[Routes] Email verification error:", error);
+      res.status(400).json({ error: (error as Error).message });
+    }
+  });
+
+  // Add login endpoint
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { email, password } = signUpSchema.parse(req.body);
+      
+      const user = await db.query.users.findFirst({
+        where: eq(users.email, email),
+      });
+
+      if (!user) {
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+
+      const token = generateToken(user.id);
+      res.json({ token, userId: user.id });
+    } catch (error) {
+      console.error("[Routes] Login error:", error);
       res.status(400).json({ error: (error as Error).message });
     }
   });
