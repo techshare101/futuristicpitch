@@ -8,21 +8,33 @@ export function useUser() {
     revalidateOnFocus: false,
     onError: (err) => {
       console.log("[useUser] Auth error:", err);
-      if (err.status === 401) {
+      if (err.status === 401 || err.status === 403) {
         console.log("[useUser] Clearing token due to auth error");
-        localStorage.removeItem(TOKEN_KEY);
+        clearToken();
       }
     }
   });
 
   const setToken = (token: string) => {
+    if (!token) {
+      console.error("[useUser] Attempted to store empty token");
+      return;
+    }
     console.log("[useUser] Storing auth token");
-    localStorage.setItem(TOKEN_KEY, token);
+    // Ensure token has Bearer prefix when storing
+    const tokenWithPrefix = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+    localStorage.setItem(TOKEN_KEY, tokenWithPrefix);
   };
 
   const getToken = () => {
     const token = localStorage.getItem(TOKEN_KEY);
     console.log("[useUser] Retrieved token:", token ? "exists" : "not found");
+    if (token && !token.startsWith('Bearer ')) {
+      console.log("[useUser] Adding Bearer prefix to existing token");
+      const tokenWithPrefix = `Bearer ${token}`;
+      localStorage.setItem(TOKEN_KEY, tokenWithPrefix);
+      return tokenWithPrefix;
+    }
     return token;
   };
 
@@ -33,12 +45,32 @@ export function useUser() {
 
   const getFetchHeaders = () => {
     const token = getToken();
-    return token ? {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    } : {
+    if (!token) {
+      console.log("[useUser] No token available for headers");
+      return { 'Content-Type': 'application/json' };
+    }
+    return {
+      'Authorization': token,
       'Content-Type': 'application/json'
     };
+  };
+
+  const handleAuthResponse = async (response: Response) => {
+    const data = await response.json();
+    
+    if (!response.ok) {
+      console.error("[useUser] Auth request failed:", data.error);
+      throw new Error(data.error || "Authentication failed");
+    }
+
+    // Check for token refresh
+    const newToken = response.headers.get('X-New-Token');
+    if (newToken) {
+      console.log("[useUser] Received refreshed token");
+      setToken(newToken);
+    }
+
+    return data;
   };
 
   return {
@@ -56,13 +88,7 @@ export function useUser() {
           body: JSON.stringify(credentials),
         });
 
-        const data = await response.json();
-
-        if (!response.ok) {
-          console.error("[useUser] Login failed:", data.error);
-          throw new Error(data.error || "Login failed");
-        }
-
+        const data = await handleAuthResponse(response);
         console.log("[useUser] Login successful");
         setToken(data.token);
         await mutate();
