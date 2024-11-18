@@ -22,24 +22,44 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
         const token = getToken();
         
         if (!token) {
-          console.log("[ProtectedRoute] No token found, redirecting to login");
-          throw new Error("Authentication required");
+          console.log("[ProtectedRoute] No token found");
+          throw new Error("No authentication token found");
+        }
+
+        // Check if token is properly formatted
+        if (!token.match(/^[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.?[A-Za-z0-9-_.+/=]*$/)) {
+          console.error("[ProtectedRoute] Invalid token format");
+          throw new Error("Invalid token format");
         }
 
         if (user) {
           console.log("[ProtectedRoute] User authenticated:", user.id);
           setIsAuthenticated(true);
         } else if (error) {
-          console.log("[ProtectedRoute] Auth error:", error);
+          console.error("[ProtectedRoute] Auth error:", error);
+          if (error.message?.includes('expired')) {
+            throw new Error("Authentication token has expired");
+          }
           throw error;
         }
       } catch (err) {
         console.error("[ProtectedRoute] Auth validation error:", err);
+        let errorMessage = "Please log in to continue";
+        
+        if (err instanceof Error) {
+          if (err.message.includes('expired')) {
+            errorMessage = "Your session has expired. Please log in again";
+          } else if (err.message.includes('invalid')) {
+            errorMessage = "Invalid authentication. Please log in again";
+          }
+        }
+
         toast({
           title: "Authentication Required",
-          description: "Please log in to continue",
+          description: errorMessage,
           variant: "destructive",
         });
+        
         setIsAuthenticated(false);
         setLocation('/login');
       } finally {
@@ -50,7 +70,6 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     validateAuth();
   }, [user, error, setLocation, toast, getToken]);
 
-  // Show loading state
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-[#2a0066] to-slate-900">
@@ -62,11 +81,9 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
-  // If not authenticated, component will be unmounted during redirect
   if (!isAuthenticated) {
     return null;
   }
 
-  // Render protected content
   return <>{children}</>;
 }

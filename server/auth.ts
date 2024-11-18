@@ -14,8 +14,9 @@ const SMTP_USER = process.env.SMTP_USER;
 const SMTP_PASS = process.env.SMTP_PASS;
 
 const TOKEN_EXPIRY = "24h";
+const TOKEN_REFRESH_THRESHOLD = 60 * 60; // 1 hour in seconds
 
-// Email transporter
+// Email transporter configuration...
 const transporter = nodemailer.createTransport({
   host: SMTP_HOST,
   port: SMTP_PORT,
@@ -39,70 +40,99 @@ export async function comparePasswords(password: string, hashedPassword: string)
 
 export function generateToken(userId: string): string {
   console.log("[Auth] Generating token for user:", userId);
-  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: TOKEN_EXPIRY });
+  return jwt.sign({ userId }, JWT_SECRET, { 
+    expiresIn: TOKEN_EXPIRY,
+    algorithm: 'HS256'
+  });
 }
 
-export function verifyToken(token: string): { userId: string } {
+export function verifyToken(token: string): { userId: string; isNearExpiry: boolean } {
   console.log("[Auth] Verifying token");
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; exp: number };
+    const decoded = jwt.verify(token, JWT_SECRET) as { 
+      userId: string; 
+      exp: number; 
+      iat: number 
+    };
     
     // Check token expiration
-    if (decoded.exp * 1000 < Date.now()) {
-      throw new Error("Token has expired");
+    const now = Math.floor(Date.now() / 1000);
+    if (decoded.exp <= now) {
+      console.error("[Auth] Token has expired");
+      throw new jwt.TokenExpiredError("Token has expired", new Date(decoded.exp * 1000));
     }
 
-    return { userId: decoded.userId };
+    // Check if token is near expiry
+    const isNearExpiry = decoded.exp - now <= TOKEN_REFRESH_THRESHOLD;
+    if (isNearExpiry) {
+      console.log("[Auth] Token is near expiry");
+    }
+
+    return { userId: decoded.userId, isNearExpiry };
   } catch (error) {
     console.error("[Auth] Token verification failed:", error);
     if (error instanceof jwt.TokenExpiredError) {
       throw new Error("Token has expired");
     } else if (error instanceof jwt.JsonWebTokenError) {
-      throw new Error("Invalid token");
+      throw new Error("Invalid token format or signature");
     }
     throw new Error("Token validation failed");
   }
 }
 
-// Authentication middleware with enhanced error handling
 export async function authenticateUser(req: Request, res: Response, next: NextFunction) {
   try {
     const authHeader = req.headers.authorization;
     
     if (!authHeader) {
+      console.error("[Auth] No authorization header");
       return res.status(401).json({ error: "No authorization header provided" });
     }
 
     if (!authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: "Invalid authorization format" });
+      console.error("[Auth] Invalid authorization format");
+      return res.status(401).json({ error: "Invalid authorization format - Bearer token required" });
     }
 
     const token = authHeader.split(' ')[1];
     
     if (!token) {
+      console.error("[Auth] No token provided");
       return res.status(401).json({ error: "No token provided" });
     }
 
-    const decoded = verifyToken(token);
+    const { userId, isNearExpiry } = verifyToken(token);
     
     const user = await db.query.users.findFirst({
-      where: eq(users.id, decoded.userId),
+      where: eq(users.id, userId),
     });
 
     if (!user) {
+      console.error("[Auth] User not found:", userId);
       return res.status(401).json({ error: "User not found or deleted" });
     }
 
     if (!user.emailVerified) {
+      console.error("[Auth] Email not verified for user:", userId);
       return res.status(403).json({ error: "Email not verified" });
     }
 
     // Add user to request object
     (req as any).user = user;
+
+    // If token is near expiry, generate a new one
+    if (isNearExpiry) {
+      const newToken = generateToken(userId);
+      res.setHeader('X-New-Token', newToken);
+    }
+
     next();
   } catch (error) {
     console.error("[Auth] Authentication error:", error);
     if (error instanceof Error) {
+      if (error.message.includes('expired')) {
+        return res.status(401).json({ error: "Token has expired", code: "TOKEN_EXPIRED" });
+      }
       res.status(401).json({ error: error.message });
     } else {
       res.status(401).json({ error: "Authentication failed" });
