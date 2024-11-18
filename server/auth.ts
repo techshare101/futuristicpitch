@@ -13,6 +13,8 @@ const SMTP_PORT = parseInt(process.env.SMTP_PORT || "587");
 const SMTP_USER = process.env.SMTP_USER;
 const SMTP_PASS = process.env.SMTP_PASS;
 
+const TOKEN_EXPIRY = "24h";
+
 // Email transporter
 const transporter = nodemailer.createTransport({
   host: SMTP_HOST,
@@ -37,29 +39,50 @@ export async function comparePasswords(password: string, hashedPassword: string)
 
 export function generateToken(userId: string): string {
   console.log("[Auth] Generating token for user:", userId);
-  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: "24h" });
+  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: TOKEN_EXPIRY });
 }
 
 export function verifyToken(token: string): { userId: string } {
   console.log("[Auth] Verifying token");
   try {
-    return jwt.verify(token, JWT_SECRET) as { userId: string };
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; exp: number };
+    
+    // Check token expiration
+    if (decoded.exp * 1000 < Date.now()) {
+      throw new Error("Token has expired");
+    }
+
+    return { userId: decoded.userId };
   } catch (error) {
     console.error("[Auth] Token verification failed:", error);
-    throw new Error("Invalid token");
+    if (error instanceof jwt.TokenExpiredError) {
+      throw new Error("Token has expired");
+    } else if (error instanceof jwt.JsonWebTokenError) {
+      throw new Error("Invalid token");
+    }
+    throw new Error("Token validation failed");
   }
 }
 
-// Authentication middleware
+// Authentication middleware with enhanced error handling
 export async function authenticateUser(req: Request, res: Response, next: NextFunction) {
   try {
     const authHeader = req.headers.authorization;
     
-    if (!authHeader?.startsWith('Bearer ')) {
-      return res.status(401).json({ error: "No token provided" });
+    if (!authHeader) {
+      return res.status(401).json({ error: "No authorization header provided" });
+    }
+
+    if (!authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: "Invalid authorization format" });
     }
 
     const token = authHeader.split(' ')[1];
+    
+    if (!token) {
+      return res.status(401).json({ error: "No token provided" });
+    }
+
     const decoded = verifyToken(token);
     
     const user = await db.query.users.findFirst({
@@ -67,7 +90,11 @@ export async function authenticateUser(req: Request, res: Response, next: NextFu
     });
 
     if (!user) {
-      return res.status(401).json({ error: "User not found" });
+      return res.status(401).json({ error: "User not found or deleted" });
+    }
+
+    if (!user.emailVerified) {
+      return res.status(403).json({ error: "Email not verified" });
     }
 
     // Add user to request object
@@ -75,7 +102,11 @@ export async function authenticateUser(req: Request, res: Response, next: NextFu
     next();
   } catch (error) {
     console.error("[Auth] Authentication error:", error);
-    res.status(401).json({ error: "Invalid authentication token" });
+    if (error instanceof Error) {
+      res.status(401).json({ error: error.message });
+    } else {
+      res.status(401).json({ error: "Authentication failed" });
+    }
   }
 }
 
