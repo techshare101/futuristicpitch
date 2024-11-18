@@ -5,39 +5,54 @@ const TOKEN_KEY = 'auth_token';
 
 // Utility to validate JWT token format
 const isValidJWT = (token: string): boolean => {
-  const tokenPart = token.startsWith('Bearer ') ? token.split(' ')[1] : token;
-  const tokenRegex = /^[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.[A-Za-z0-9-_.+/=]*$/;
-  return tokenRegex.test(tokenPart);
+  try {
+    const tokenPart = token.startsWith('Bearer ') ? token.split(' ')[1] : token;
+    const tokenRegex = /^[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.[A-Za-z0-9-_.+/=]*$/;
+    return tokenRegex.test(tokenPart);
+  } catch (error) {
+    console.error("[useUser] Token validation error:", error);
+    return false;
+  }
+};
+
+// Utility to ensure token has Bearer prefix
+const ensureBearerPrefix = (token: string): string => {
+  return token.startsWith('Bearer ') ? token : `Bearer ${token}`;
 };
 
 export function useUser() {
   const { data, error, mutate } = useSWR<User>("/api/auth/status", {
     revalidateOnFocus: false,
     onError: (err) => {
-      console.log("[useUser] Auth error:", err);
+      console.error("[useUser] Auth error:", err);
       if (err.status === 401 || err.status === 403) {
         console.log("[useUser] Clearing token due to auth error");
         clearToken();
+        mutate(undefined);
       }
     }
   });
 
   const setToken = (token: string) => {
-    if (!token) {
-      console.error("[useUser] Attempted to store empty token");
-      return;
-    }
+    try {
+      if (!token || typeof token !== 'string') {
+        throw new Error("Invalid token provided");
+      }
 
-    // Validate token format
-    if (!isValidJWT(token.startsWith('Bearer ') ? token.split(' ')[1] : token)) {
-      console.error("[useUser] Invalid token format");
-      return;
-    }
+      // Validate token format
+      if (!isValidJWT(token)) {
+        throw new Error("Invalid token format");
+      }
 
-    console.log("[useUser] Storing auth token");
-    // Ensure token has Bearer prefix when storing
-    const tokenWithPrefix = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
-    localStorage.setItem(TOKEN_KEY, tokenWithPrefix);
+      // Ensure token has Bearer prefix and store
+      const tokenWithPrefix = ensureBearerPrefix(token);
+      localStorage.setItem(TOKEN_KEY, tokenWithPrefix);
+      console.log("[useUser] Token stored successfully");
+    } catch (error) {
+      console.error("[useUser] Token storage error:", error);
+      clearToken();
+      throw error;
+    }
   };
 
   const getToken = () => {
@@ -48,22 +63,16 @@ export function useUser() {
       if (!token) return null;
 
       // Validate stored token format
-      if (!isValidJWT(token.startsWith('Bearer ') ? token.split(' ')[1] : token)) {
-        console.error("[useUser] Stored token is invalid, clearing");
+      if (!isValidJWT(token)) {
+        console.error("[useUser] Stored token is invalid");
         clearToken();
         return null;
       }
 
       // Ensure Bearer prefix
-      if (!token.startsWith('Bearer ')) {
-        const tokenWithPrefix = `Bearer ${token}`;
-        localStorage.setItem(TOKEN_KEY, tokenWithPrefix);
-        return tokenWithPrefix;
-      }
-
-      return token;
+      return ensureBearerPrefix(token);
     } catch (error) {
-      console.error("[useUser] Error retrieving token:", error);
+      console.error("[useUser] Token retrieval error:", error);
       clearToken();
       return null;
     }
@@ -76,29 +85,30 @@ export function useUser() {
 
   const getFetchHeaders = () => {
     const token = getToken();
-    if (!token) {
-      console.log("[useUser] No token available for headers");
-      return { 'Content-Type': 'application/json' };
-    }
-    return {
-      'Authorization': token,
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json'
     };
-  };
 
-  const handleAuthResponse = async (response: Response) => {
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({}));
-      console.error("[useUser] Auth request failed:", data.error || response.statusText);
-      throw new Error(data.error || "Authentication failed");
+    if (token) {
+      headers['Authorization'] = token;
     }
 
-    const data = await response.json();
+    return headers;
+  };
+
+  const handleResponse = async (response: Response) => {
+    const data = await response.json().catch(() => ({}));
     
+    if (!response.ok) {
+      const error = new Error(data.error || response.statusText || 'Request failed');
+      (error as any).status = response.status;
+      throw error;
+    }
+
     // Check for token refresh
     const newToken = response.headers.get('X-New-Token');
-    if (newToken) {
-      console.log("[useUser] Received refreshed token");
+    if (newToken && isValidJWT(newToken)) {
+      console.log("[useUser] Received new token");
       setToken(newToken);
     }
 
@@ -120,17 +130,26 @@ export function useUser() {
           body: JSON.stringify(credentials),
         });
 
-        const data = await handleAuthResponse(response);
-        console.log("[useUser] Login successful");
+        const data = await handleResponse(response);
+
+        if (!data.token) {
+          throw new Error("No token received from server");
+        }
+
         setToken(data.token);
         await mutate();
+
         return { ok: true, data };
       } catch (error) {
         console.error("[useUser] Login error:", error);
         clearToken();
+        await mutate(undefined);
+        
         return {
           ok: false,
-          error: error instanceof Error ? error.message : "Login failed",
+          error: error instanceof Error ? 
+            error.message : 
+            "An unexpected error occurred during login"
         };
       }
     },
@@ -144,7 +163,9 @@ export function useUser() {
         console.error("[useUser] Logout error:", error);
         return {
           ok: false,
-          error: error instanceof Error ? error.message : "Logout failed",
+          error: error instanceof Error ? 
+            error.message : 
+            "An unexpected error occurred during logout"
         };
       }
     },

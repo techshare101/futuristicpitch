@@ -28,52 +28,53 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
         const token = getToken();
         
         if (!token) {
-          console.log("[ProtectedRoute] No token found");
-          throw new Error("Please log in to continue");
+          throw new Error("Please log in to access this page");
         }
 
-        // Validate token format
+        // Basic token structure validation
+        if (!token.startsWith('Bearer ')) {
+          throw new Error("Invalid token format - missing Bearer prefix");
+        }
+
         const tokenPart = token.split(' ')[1];
-        const tokenRegex = /^[A-Za-z0-9-_=]+\.[A-Za-z0-9-_=]+\.[A-Za-z0-9-_.+/=]*$/;
-        if (!tokenRegex.test(tokenPart)) {
-          console.error("[ProtectedRoute] Invalid token format");
-          throw new Error("Invalid authentication token");
+        if (!tokenPart || tokenPart.split('.').length !== 3) {
+          throw new Error("Invalid token structure");
         }
 
         if (user) {
-          console.log("[ProtectedRoute] User authenticated:", user.id);
           if (mounted) {
+            console.log("[ProtectedRoute] User authenticated:", user.id);
             setIsAuthenticated(true);
             setAuthError(null);
           }
         } else if (error) {
           console.error("[ProtectedRoute] Auth error:", error);
-          throw new Error(error.message || "Authentication failed");
+          throw error;
         }
       } catch (err) {
-        console.error("[ProtectedRoute] Auth validation error:", err);
-        const errorMessage = err instanceof Error ? err.message : "Authentication required";
-        
-        if (mounted) {
-          setAuthError(errorMessage);
-          setIsAuthenticated(false);
-          
-          toast({
-            title: "Authentication Required",
-            description: errorMessage,
-            variant: "destructive",
-          });
-        }
+        if (!mounted) return;
 
-        // Delayed redirect to improve UX
+        const errorMessage = err instanceof Error ? err.message : "Authentication required";
+        console.error("[ProtectedRoute] Auth validation error:", { message: errorMessage });
+        
+        setAuthError(errorMessage);
+        setIsAuthenticated(false);
+        
+        toast({
+          title: "Authentication Required",
+          description: errorMessage,
+          variant: "destructive",
+        });
+
+        // Delayed redirect with return path
         redirectTimeout = setTimeout(() => {
-          if (mounted) {
-            const currentPath = window.location.pathname;
-            setLocation('/login', { 
-              replace: true,
-              state: { returnTo: currentPath }
-            });
-          }
+          if (!mounted) return;
+          
+          const currentPath = window.location.pathname;
+          setLocation('/login', { 
+            replace: true,
+            state: { returnTo: currentPath }
+          });
         }, 2000);
       } finally {
         if (mounted) {
@@ -84,7 +85,6 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
     validateAuth();
 
-    // Cleanup function
     return () => {
       mounted = false;
       if (redirectTimeout) {
