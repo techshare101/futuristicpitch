@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import type { ReactNode } from "react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -16,29 +16,39 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
+  const redirectInProgress = useRef(false);
   const { toast } = useToast();
   const { user, error, getToken } = useUser();
 
+  // Handle redirect with debouncing
+  const handleRedirect = (path: string, state?: any) => {
+    if (redirectInProgress.current) {
+      console.log("[ProtectedRoute] Redirect already in progress, skipping");
+      return;
+    }
+
+    redirectInProgress.current = true;
+    console.log("[ProtectedRoute] Initiating redirect to:", path);
+    
+    setLocation(path, state);
+    
+    // Reset redirect flag after a delay
+    setTimeout(() => {
+      redirectInProgress.current = false;
+    }, 2000);
+  };
+
   useEffect(() => {
-    let redirectTimeout: NodeJS.Timeout;
     let mounted = true;
+    console.log("[ProtectedRoute] Component mounted");
 
     const validateAuth = async () => {
       try {
         const token = getToken();
+        console.log("[ProtectedRoute] Validating authentication");
         
         if (!token) {
-          throw new Error("Please log in to access this page");
-        }
-
-        // Basic token structure validation
-        if (!token.startsWith('Bearer ')) {
-          throw new Error("Invalid token format - missing Bearer prefix");
-        }
-
-        const tokenPart = token.split(' ')[1];
-        if (!tokenPart || tokenPart.split('.').length !== 3) {
-          throw new Error("Invalid token structure");
+          throw new Error("Please log in to continue");
         }
 
         if (user) {
@@ -66,16 +76,13 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
           variant: "destructive",
         });
 
-        // Delayed redirect with return path
-        redirectTimeout = setTimeout(() => {
-          if (!mounted) return;
-          
-          const currentPath = window.location.pathname;
-          setLocation('/login', { 
+        const currentPath = window.location.pathname;
+        if (currentPath !== '/login') {
+          handleRedirect('/login', { 
             replace: true,
             state: { returnTo: currentPath }
           });
-        }, 2000);
+        }
       } finally {
         if (mounted) {
           setIsLoading(false);
@@ -87,9 +94,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
     return () => {
       mounted = false;
-      if (redirectTimeout) {
-        clearTimeout(redirectTimeout);
-      }
+      console.log("[ProtectedRoute] Component unmounted");
     };
   }, [user, error, setLocation, toast, getToken]);
 
@@ -98,7 +103,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-[#2a0066] to-slate-900">
         <div className="text-white/60 flex flex-col items-center">
           <Loader2 className="h-8 w-8 animate-spin mb-4" />
-          <p>Verifying your authentication...</p>
+          <p>Verifying authentication...</p>
         </div>
       </div>
     );
@@ -115,7 +120,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
             <Button 
               variant="outline" 
               className="mt-4 w-full"
-              onClick={() => setLocation('/login')}
+              onClick={() => handleRedirect('/login')}
             >
               Go to Login
             </Button>
