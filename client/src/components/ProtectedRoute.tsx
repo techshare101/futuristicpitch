@@ -20,14 +20,20 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const authCheckInProgress = useRef(false);
   const unmountedRef = useRef(false);
   const authTimeoutRef = useRef<NodeJS.Timeout>();
+  const debounceTimeoutRef = useRef<NodeJS.Timeout>();
   const { toast } = useToast();
-  const { user, error, getToken, refreshToken } = useUser();
+  const { user, error, getToken } = useUser();
 
-  // Enhanced redirect handling with debounce
+  // Enhanced redirect handling with debounce and path tracking
   const handleRedirect = useCallback((path: string) => {
     if (redirectInProgress.current || unmountedRef.current) {
       console.log("[ProtectedRoute] Redirect blocked - already in progress or unmounted");
       return;
+    }
+
+    // Clear any existing debounce timeout
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
     }
 
     redirectInProgress.current = true;
@@ -36,52 +42,54 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     // Store current path for post-login redirect
     if (path === '/login') {
       const currentPath = window.location.pathname;
-      if (currentPath !== '/login') {
+      if (currentPath !== '/login' && currentPath !== '/') {
+        console.log("[ProtectedRoute] Storing return path:", currentPath);
         sessionStorage.setItem('returnTo', currentPath);
       }
     }
 
-    // Perform redirect with debounce
-    setTimeout(() => {
+    // Debounce redirect to prevent rapid consecutive redirects
+    debounceTimeoutRef.current = setTimeout(() => {
       if (!unmountedRef.current) {
         setLocation(path);
         // Reset redirect flag after navigation
         setTimeout(() => {
-          redirectInProgress.current = false;
-          console.log("[ProtectedRoute] Redirect completed, flag reset");
+          if (!unmountedRef.current) {
+            redirectInProgress.current = false;
+            console.log("[ProtectedRoute] Redirect completed, flag reset");
+          }
         }, 100);
       }
     }, 50);
   }, [setLocation]);
 
-  // Enhanced authentication check with proper error handling
+  // Enhanced authentication check with proper error handling and state management
   const checkAuthentication = useCallback(async () => {
     if (authCheckInProgress.current || unmountedRef.current) {
+      console.log("[ProtectedRoute] Auth check blocked - already in progress or unmounted");
       return;
     }
 
     authCheckInProgress.current = true;
-    setIsLoading(true);
+    if (!isLoading) setIsLoading(true);
     
     try {
       const token = getToken();
-      console.log("[ProtectedRoute] Checking authentication");
+      console.log("[ProtectedRoute] Checking authentication status");
       
       if (!token) {
-        throw new Error("Authentication required");
+        throw new Error("No valid authentication token found");
       }
 
       if (user) {
         console.log("[ProtectedRoute] User authenticated:", user.id);
         setIsAuthenticated(true);
         setAuthError(null);
-        
-        // Refresh token if needed
-        await refreshToken();
 
         // Handle post-login redirect
         const returnTo = sessionStorage.getItem('returnTo');
         if (returnTo && window.location.pathname === '/login') {
+          console.log("[ProtectedRoute] Redirecting to stored path:", returnTo);
           sessionStorage.removeItem('returnTo');
           handleRedirect(returnTo);
         }
@@ -104,7 +112,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
       });
 
       const currentPath = window.location.pathname;
-      if (currentPath !== '/login') {
+      if (currentPath !== '/login' && currentPath !== '/') {
         handleRedirect('/login');
       }
     } finally {
@@ -113,9 +121,9 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
         authCheckInProgress.current = false;
       }
     }
-  }, [user, error, getToken, refreshToken, handleRedirect, toast]);
+  }, [user, error, getToken, handleRedirect, toast, isLoading]);
 
-  // Enhanced component lifecycle management
+  // Component lifecycle management with cleanup
   useEffect(() => {
     unmountedRef.current = false;
     console.log("[ProtectedRoute] Component mounted");
@@ -127,6 +135,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
       } catch (error) {
         if (!unmountedRef.current) {
           console.error("[ProtectedRoute] Initial auth check failed:", error);
+          // Retry after delay
           authTimeoutRef.current = setTimeout(performInitialCheck, 2000);
         }
       }
@@ -141,6 +150,9 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
       if (authTimeoutRef.current) {
         clearTimeout(authTimeoutRef.current);
       }
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
       console.log("[ProtectedRoute] Component cleanup completed");
     };
   }, [checkAuthentication]);
@@ -148,10 +160,12 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   // Auth state changes handler with debounce
   useEffect(() => {
     if (!isLoading && !unmountedRef.current) {
-      const timeoutId = setTimeout(() => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+      debounceTimeoutRef.current = setTimeout(() => {
         checkAuthentication();
       }, 100);
-      return () => clearTimeout(timeoutId);
     }
   }, [user, error, checkAuthentication, isLoading]);
 

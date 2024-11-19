@@ -1,6 +1,6 @@
 import useSWR from "swr";
 import type { User } from "../../types";
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 
 const TOKEN_KEY = 'auth_token';
 const MAX_RETRIES = 3;
@@ -27,13 +27,8 @@ const validateToken = (token: string | null): TokenValidationResult => {
   }
 
   try {
-    // Validate token format
-    if (!token.includes('Bearer ')) {
-      console.log("[useUser] Token missing Bearer prefix");
-      return { isValid: false, error: "Invalid token format" };
-    }
-
-    const tokenPart = token.split(' ')[1];
+    // Ensure Bearer prefix
+    const tokenPart = token.startsWith('Bearer ') ? token.split(' ')[1] : token;
     
     // Validate JWT structure
     const parts = tokenPart.split('.');
@@ -45,8 +40,19 @@ const validateToken = (token: string | null): TokenValidationResult => {
     // Basic validation of each part
     const isValidParts = parts.every(part => {
       try {
-        return Buffer.from(part.replace(/-/g, '+').replace(/_/g, '/'), 'base64').length > 0;
-      } catch {
+        const buffer = Buffer.from(part.replace(/-/g, '+').replace(/_/g, '/'), 'base64');
+        if (buffer.length === 0) return false;
+        
+        // Additional validation for expiry
+        if (part === parts[1]) {
+          const payload = JSON.parse(buffer.toString());
+          if (payload.exp && payload.exp * 1000 < Date.now()) {
+            throw new Error("Token expired");
+          }
+        }
+        return true;
+      } catch (error) {
+        console.error("[useUser] Token part validation error:", error);
         return false;
       }
     });
@@ -60,6 +66,9 @@ const validateToken = (token: string | null): TokenValidationResult => {
     return { isValid: true };
   } catch (error) {
     console.error("[useUser] Token validation error:", error);
+    if (error instanceof Error && error.message === "Token expired") {
+      return { isValid: false, error: "Token expired" };
+    }
     return { isValid: false, error: "Token validation failed" };
   }
 };
@@ -126,7 +135,7 @@ export function useUser() {
         throw new Error("Invalid token provided");
       }
 
-      const tokenWithPrefix = ensureBearerPrefix(token);
+      const tokenWithPrefix = token.startsWith('Bearer ') ? token : ensureBearerPrefix(token);
       const validationResult = validateToken(tokenWithPrefix);
       
       if (!validationResult.isValid) {
@@ -150,7 +159,8 @@ export function useUser() {
       
       if (!token) return null;
 
-      const tokenWithPrefix = ensureBearerPrefix(token);
+      // Ensure Bearer prefix and validate
+      const tokenWithPrefix = token.startsWith('Bearer ') ? token : ensureBearerPrefix(token);
       const validationResult = validateToken(tokenWithPrefix);
       
       if (!validationResult.isValid) {
@@ -174,63 +184,6 @@ export function useUser() {
       clearTimeout(refreshTimeoutRef.current);
     }
   }, []);
-
-  // Enhanced token refresh mechanism
-  const refreshToken = useCallback(async () => {
-    if (isRefreshing || unmountedRef.current) {
-      console.log("[useUser] Token refresh skipped - already in progress or unmounted");
-      return;
-    }
-    
-    try {
-      setIsRefreshing(true);
-      console.log("[useUser] Starting token refresh");
-      
-      const token = getToken();
-      if (!token) {
-        throw new Error("No token available for refresh");
-      }
-
-      const response = await retryRequest(() =>
-        fetch("/api/auth/refresh", {
-          method: "POST",
-          headers: {
-            "Authorization": token
-          },
-        })
-      );
-
-      if (!response.ok) {
-        throw new Error(`Token refresh failed: ${response.status}`);
-      }
-
-      const newToken = response.headers.get("X-New-Token");
-      if (!newToken) {
-        throw new Error("No new token received");
-      }
-
-      console.log("[useUser] New token received");
-      setToken(newToken);
-      await mutate();
-
-      // Schedule next refresh
-      const jwtData = JSON.parse(atob(newToken.split('.')[1]));
-      const expiresIn = (jwtData.exp * 1000) - Date.now() - 60000; // Refresh 1 minute before expiry
-      
-      refreshTimeoutRef.current = setTimeout(refreshToken, Math.max(0, expiresIn));
-      
-    } catch (error) {
-      console.error("[useUser] Token refresh failed:", error);
-      if (!unmountedRef.current) {
-        clearToken();
-        await mutate(undefined, { revalidate: false });
-      }
-    } finally {
-      if (!unmountedRef.current) {
-        setIsRefreshing(false);
-      }
-    }
-  }, [isRefreshing, getToken, setToken, mutate]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -287,24 +240,33 @@ export function useUser() {
       try {
         console.log("[useUser] Initiating logout");
         const token = getToken();
-        if (token) {
-          await fetch("/api/auth/logout", {
-            method: "POST",
-            headers: { "Authorization": token }
-          });
+        if (!token) {
+          throw new Error("No valid token found");
         }
+        
+        const response = await fetch("/api/auth/logout", {
+          method: "POST",
+          headers: { "Authorization": token }
+        });
+
+        if (!response.ok) {
+          throw new Error("Logout request failed");
+        }
+
         clearToken();
         await mutate(undefined, { revalidate: false });
         console.log("[useUser] Logout successful");
         return { ok: true };
       } catch (error) {
         console.error("[useUser] Logout error:", error);
+        // Clear token even if logout fails
+        clearToken();
+        await mutate(undefined, { revalidate: false });
         return {
           ok: false,
           error: error instanceof Error ? error.message : "Logout failed"
         };
       }
-    },
-    refreshToken,
+    }
   };
 }
