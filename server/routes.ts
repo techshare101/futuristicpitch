@@ -6,6 +6,7 @@ import { users, projects } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import { ZodError } from "zod";
+import { desc } from "drizzle-orm";
 
 async function ensurePublicUser() {
   const publicUser = await db.query.users.findFirst({
@@ -43,16 +44,23 @@ export function registerRoutes(app: Express) {
     try {
       console.log("[Routes] Fetching all projects");
       
+      // Check database connection first
+      await db.query.users.findFirst();
+      
+      // Ensure public user exists
+      await ensurePublicUser();
+      
       const allProjects = await db
         .select()
-        .from(projects);
+        .from(projects)
+        .orderBy(desc(projects.createdAt));
       
       console.log(`[Routes] Successfully fetched ${allProjects.length} projects`);
       res.json(allProjects);
     } catch (error) {
       console.error("[Routes] Error fetching projects:", error);
       res.status(500).json({ 
-        error: "Failed to fetch projects",
+        error: "Failed to fetch projects. Please try again.",
         details: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined
       });
     }
@@ -106,8 +114,13 @@ export function registerRoutes(app: Express) {
         return res.status(404).json({ error: "Project not found" });
       }
 
-      const updatedProject = await db.update(projects)
-        .set({ ...projectData, updatedAt: new Date() })
+      const updatedProject = await db
+        .update(projects)
+        .set({
+          ...projectData,
+          updatedAt: new Date(),
+          userId: 'public' // Ensure public user
+        })
         .where(eq(projects.id, id))
         .returning();
 

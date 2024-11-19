@@ -81,6 +81,14 @@ export default function Projects() {
     {
       revalidateOnFocus: true,
       refreshInterval: 30000,
+      onError: (error) => {
+        console.error("[Projects] Failed to fetch projects:", error);
+        toast({
+          title: "Error",
+          description: error.message || "Failed to fetch projects. Please try again.",
+          variant: "destructive",
+        });
+      }
     }
   );
 
