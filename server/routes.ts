@@ -1,5 +1,5 @@
 import type { Express } from "express";
-import { createUser, verifyEmail, generateToken, authenticateUser } from "./auth";
+import { createUser, verifyEmail, generateToken, authenticateUser, comparePasswords } from "./auth";
 import { signUpSchema, verifyEmailSchema, projectSchema } from "../db/schema";
 import { db } from "../db";
 import { users, projects } from "../db/schema";
@@ -32,7 +32,7 @@ export function registerRoutes(app: Express) {
     }
   });
 
-  // Projects CRUD endpoints with enhanced error handling and logging
+  // Projects CRUD endpoints
   app.get("/api/projects", authenticateUser, async (req, res) => {
     try {
       const user = (req as any).user;
@@ -158,7 +158,7 @@ export function registerRoutes(app: Express) {
     }
   });
 
-  // Keep other auth endpoints
+  // Auth endpoints
   app.post("/api/auth/signup", async (req, res) => {
     try {
       const { email, password } = signUpSchema.parse(req.body);
@@ -197,7 +197,7 @@ export function registerRoutes(app: Express) {
     }
   });
 
-  // Add login endpoint
+  // Update login endpoint with password comparison
   app.post("/api/auth/login", async (req, res) => {
     try {
       const { email, password } = signUpSchema.parse(req.body);
@@ -210,11 +210,17 @@ export function registerRoutes(app: Express) {
         return res.status(401).json({ error: "Invalid credentials" });
       }
 
+      // Add password comparison
+      const isValidPassword = await comparePasswords(password, user.hashedPassword);
+      if (!isValidPassword) {
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+
       const token = generateToken(user.id);
       res.json({ token, userId: user.id });
     } catch (error) {
       console.error("[Routes] Login error:", error);
-      res.status(400).json({ error: (error as Error).message });
+      res.status(400).json({ error: error instanceof Error ? error.message : "Login failed" });
     }
   });
 }

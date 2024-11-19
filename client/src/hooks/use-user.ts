@@ -71,17 +71,18 @@ const validateToken = (token: string | null): TokenValidationResult => {
   }
 };
 
+// Update token handling functions
 const setToken = (token: string) => {
   if (!token) return;
   const tokenWithPrefix = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
   localStorage.setItem(TOKEN_KEY, tokenWithPrefix);
-  console.log("[useUser] Token stored successfully");
+  console.log("[useUser] Token stored with prefix:", tokenWithPrefix.startsWith('Bearer '));
 };
 
 const getToken = () => {
   const token = localStorage.getItem(TOKEN_KEY);
-  console.log("[useUser] Retrieved token:", token ? 'exists' : 'not found');
-  return token;
+  if (!token) return null;
+  return token.startsWith('Bearer ') ? token : `Bearer ${token}`;
 };
 
 const retryRequest = async <T>(
@@ -186,7 +187,7 @@ export function useUser() {
         return { 
           ok: true, 
           data,
-          returnTo: returnTo || '/getting-started' // Default to getting-started
+          returnTo: returnTo || '/projects' // Default to projects page
         };
       } catch (error) {
         console.error("[useUser] Login error:", error);
@@ -201,28 +202,12 @@ export function useUser() {
     logout: async () => {
       try {
         console.log("[useUser] Initiating logout");
-        const token = getToken();
-        if (!token) {
-          throw new Error("No valid token found");
-        }
-        
-        const response = await fetch("/api/auth/logout", {
-          method: "POST",
-          headers: { "Authorization": token }
-        });
-
-        if (!response.ok) {
-          throw new Error("Logout request failed");
-        }
-
         clearToken();
         await mutate(undefined, { revalidate: false });
         console.log("[useUser] Logout successful");
         return { ok: true };
       } catch (error) {
         console.error("[useUser] Logout error:", error);
-        clearToken();
-        await mutate(undefined, { revalidate: false });
         return {
           ok: false,
           error: error instanceof Error ? error.message : "Logout failed"
