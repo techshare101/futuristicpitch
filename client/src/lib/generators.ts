@@ -14,228 +14,371 @@ Prompt for Creating a Story-Driven Brand Narrative:
 
 export function generateAd(data: ProductData): string {
   // Focus on The Hero's Entry and Victory
-  return `🌟 Introducing ${data.productName} - The Game-Changer in ${data.industryType}!
+  return `<div align="center">
 
-Your Defining Moment Has Arrived:
-${data.uniqueSellingPoint}
+# ✨ ${data.productName}
+## *The Game-Changer in ${data.industryType}*
 
-Success Story:
-Transform your business like our clients who achieved ${data.budgetRoi}
+</div>
 
-✨ Key Transformations:
-${data.keyFeatures.map(feature => `• ${feature}`).join('\n')}
+---
 
-Perfect for: ${data.targetAudience}
+### 🌟 **Your Defining Moment Has Arrived**
+> 💡 *"${data.uniqueSellingPoint}"*
 
-Ready to be the next success story? Learn more: [Link] 
+---
+
+### 📊 **Success Stories**
+Transform your business like our clients who achieved:
+• 🚀 ${data.budgetRoi}
+• ✨ Unparalleled growth
+• 💫 Market leadership
+
+---
+
+### 🎯 **Key Transformations**
+${data.keyFeatures.map(feature => `• ⭐ **${feature}**`).join('\n')}
+
+---
+
+### 👥 **Perfect For**
+*${data.targetAudience}*
+
+---
+
+**Ready to be the next success story?** [Learn More](#)
+
 #Innovation #Success #${data.industryType.replace(/\s+/g, '')}`;
 }
 
 export function generateBlogPost(data: ProductData): string {
   // Use the full 8-step cycle
-  return `The Evolution of ${data.productName}: A Journey of Innovation
+  return `<div align="center">
 
-Origins & Need:
-In the ever-evolving landscape of ${data.industryType}, ${data.companyName} recognized a critical gap. ${data.companyDescription}
+# The Evolution of ${data.productName}
+## A Journey of Innovation
 
-The Challenge:
+</div>
+
+---
+
+### 🌟 **Origins & Need**
+In the ever-evolving landscape of ${data.industryType}, ${data.companyName} recognized a critical gap.
+> 💡 *"${data.companyDescription}"*
+
+---
+
+### 🔍 **The Challenge**
 ${data.currentChallenges}
 
-A Revolutionary Solution Emerges:
-Enter ${data.productName} - ${data.uniqueSellingPoint}
+---
 
-Overcoming Obstacles:
+### ⚡ **A Revolutionary Solution Emerges**
+Enter **${data.productName}** - *${data.uniqueSellingPoint}*
+
+---
+
+### 🛠️ **Overcoming Obstacles**
 Through rigorous development and testing, we addressed:
+• 🔄 Integration challenges
+• 🎯 Market demands
+• 💪 Performance requirements
+
 ${data.integrationNeeds}
 
-Success Stories:
-Our clients have experienced remarkable transformations:
-• ${data.budgetRoi}
-${data.keyFeatures.map(feature => `• ${feature}: Driving real results`).join('\n')}
+---
 
-The New Reality:
+### 🏆 **Success Stories**
+📊 **Client Achievements:**
+• ✨ ${data.budgetRoi}
+${data.keyFeatures.map(feature => `• 🚀 **${feature}**: *Driving real results*`).join('\n')}
+
+---
+
+### 🌈 **The New Reality**
 Post-implementation, our clients experience:
-• Streamlined operations
-• Enhanced productivity
-• Improved ROI
-• Better decision-making
+• 📈 Streamlined operations
+• ⚡ Enhanced productivity
+• 💰 Improved ROI
+• 🎯 Better decision-making
 
-Simple Yet Powerful:
+---
+
+### 💡 **Simple Yet Powerful**
 ${data.description}
 
-Our Promise:
-At ${data.companyName}, we're committed to:
-• Innovation with purpose
-• Client success
-• Continuous improvement
-• Ethical business practices
+---
 
-Ready to transform your business? Contact us today!`;
+### ⭐ **Our Promise**
+At **${data.companyName}**, we're committed to:
+• 🔬 Innovation with purpose
+• 👥 Client success
+• 🔄 Continuous improvement
+• 🤝 Ethical business practices
+
+---
+
+> 💫 *Ready to transform your business? Contact us today!*`;
 }
 
 export function generateSocialPost(data: ProductData): string {
   // Emphasize The Problem and The New World
-  return `🔍 Struggling with ${data.currentChallenges.toLowerCase()}?
+  return `<div align="center">
 
-Imagine a world where:
-✨ ${data.uniqueSellingPoint}
-✨ Your team achieves ${data.budgetRoi}
-✨ Daily challenges become opportunities
+# 🔍 Transform Your ${data.industryType}
 
-${data.productName} makes this reality possible.
+</div>
 
-Join the future of ${data.industryType} with ${data.companyName}
+---
+
+### **Facing These Challenges?**
+> 💡 *"${data.currentChallenges.toLowerCase()}"*
+
+---
+
+### ✨ **Imagine a World Where:**
+• 🌟 ${data.uniqueSellingPoint}
+• 🚀 Your team achieves ${data.budgetRoi}
+• 💫 Daily challenges become opportunities
+
+---
+
+### 🎯 **The Solution**
+**${data.productName}** makes this reality possible.
+
+---
+
+Join the future of ${data.industryType} with *${data.companyName}*
 
 #Innovation #FutureOfWork #${data.industryType.replace(/\s+/g, '')}`;
 }
 
 export function generateAnalysis(data: ProductData): string {
   // Focus on Journey and Resolving Complexities
-  return `Strategic Analysis: Implementing ${data.productName}
+  return `<div align="center">
 
-Journey to Excellence:
-1. Current State Assessment:
-   • Industry: ${data.industryType}
-   • Challenges: ${data.currentChallenges}
+# Strategic Analysis
+## Implementing ${data.productName}
 
-2. Implementation Pathway:
-   • Integration Approach: ${data.integrationNeeds}
-   • ROI Timeline: ${data.budgetRoi}
+</div>
 
-Simplifying Complex Solutions:
-${data.keyFeatures.map((feature, index) => `${index + 1}. ${feature}
-   • Implementation strategy
-   • Expected outcomes
-   • Performance metrics`).join('\n')}
+---
 
-Technical Framework:
-• Architecture Overview
-• Integration Points
-• Scalability Measures
-• Security Protocols
+### 📊 **Journey to Excellence**
 
-Risk Mitigation Strategy:
-1. Comprehensive training
-2. Phased deployment
-3. Continuous monitoring
-4. Regular optimization`;
+#### 1. Current State Assessment
+• 🏢 **Industry:** ${data.industryType}
+• 🎯 **Challenges:** ${data.currentChallenges}
+
+#### 2. Implementation Pathway
+• 🔄 **Integration:** ${data.integrationNeeds}
+• 📈 **ROI Timeline:** ${data.budgetRoi}
+
+---
+
+### 💡 **Simplifying Complex Solutions**
+${data.keyFeatures.map((feature, index) => `
+#### ${index + 1}. **${feature}**
+• 📋 Implementation strategy
+• 🎯 Expected outcomes
+• 📊 Performance metrics`).join('\n')}
+
+---
+
+### 🛠️ **Technical Framework**
+• 🏗️ Architecture Overview
+• 🔄 Integration Points
+• 📈 Scalability Measures
+• 🔒 Security Protocols
+
+---
+
+### ⚡ **Risk Mitigation Strategy**
+1. 📚 **Comprehensive training**
+2. 🔄 **Phased deployment**
+3. 📊 **Continuous monitoring**
+4. ⚙️ **Regular optimization**`;
 }
 
 export function generateFeatures(data: ProductData): string {
   // Highlight The Hero's Entry and Resolving Complexities
-  return `${data.productName}: Transformative Features
+  return `<div align="center">
 
-Game-Changing Solution:
-${data.uniqueSellingPoint}
+# ${data.productName}
+## Transformative Features
 
-Core Capabilities:
-${data.keyFeatures.map((feature, index) => `${index + 1}. ${feature}
-   • How it works
-   • Business impact
-   • Implementation ease`).join('\n')}
+</div>
 
-Integration Framework:
+---
+
+### 🌟 **Game-Changing Solution**
+> 💡 *"${data.uniqueSellingPoint}"*
+
+---
+
+### 💫 **Core Capabilities**
+${data.keyFeatures.map((feature, index) => `
+#### ${index + 1}. **${feature}**
+• 🔧 How it works
+• 📈 Business impact
+• 🎯 Implementation ease`).join('\n')}
+
+---
+
+### 🔄 **Integration Framework**
 ${data.integrationNeeds}
 
-Simplified Technology Stack:
-• Intuitive Interface
-• Seamless Integration
-• Real-time Analytics
-• Automated Workflows
+---
 
-Support Infrastructure:
-• 24/7 Technical Support
-• Training Resources
-• Implementation Guides
-• Best Practices`;
+### 🛠️ **Simplified Technology Stack**
+• 💻 **Intuitive Interface**
+• 🔄 **Seamless Integration**
+• 📊 **Real-time Analytics**
+• ⚡ **Automated Workflows**
+
+---
+
+### 🤝 **Support Infrastructure**
+• 🔧 24/7 Technical Support
+• 📚 Training Resources
+• 📋 Implementation Guides
+• ✨ Best Practices`;
 }
 
 export function generateCaseStudies(data: ProductData): string {
   // Emphasize The Victory and The New World
-  return `${data.productName} Success Story
+  return `<div align="center">
 
-Client Profile:
-Industry: ${data.industryType}
-Challenge: ${data.currentChallenges}
+# ${data.productName}
+## Success Story
 
-Transformation Highlights:
-• Achievement: ${data.budgetRoi}
-• Implementation: ${data.integrationNeeds}
+</div>
 
-Key Victories:
-${data.keyFeatures.map(feature => `• ${feature}: Delivering measurable impact`).join('\n')}
+---
 
-The New Reality:
-1. Streamlined Operations
-2. Enhanced Productivity
-3. Improved ROI
-4. Better Decision-Making
+### 👥 **Client Profile**
+• 🏢 **Industry:** ${data.industryType}
+• 🎯 **Challenge:** ${data.currentChallenges}
 
-Client Testimonial:
-"${data.productName} transformed our approach to ${data.industryType}"
+---
 
-Looking Forward:
-• Continuous Improvement
-• Scaling Success
-• Future Innovations`;
+### 🌟 **Transformation Highlights**
+• 🏆 **Achievement:** ${data.budgetRoi}
+• 🔄 **Implementation:** ${data.integrationNeeds}
+
+---
+
+### 💫 **Key Victories**
+${data.keyFeatures.map(feature => `• ✨ **${feature}:** *Delivering measurable impact*`).join('\n')}
+
+---
+
+### 🌈 **The New Reality**
+1. 📈 **Streamlined Operations**
+2. ⚡ **Enhanced Productivity**
+3. 💰 **Improved ROI**
+4. 🎯 **Better Decision-Making**
+
+---
+
+### 💬 **Client Testimonial**
+> 💡 *"${data.productName} transformed our approach to ${data.industryType}"*
+
+---
+
+### 🚀 **Looking Forward**
+• 📈 Continuous Improvement
+• 🌟 Scaling Success
+• 💫 Future Innovations`;
 }
 
 export function generateIntegration(data: ProductData): string {
   // Focus on Journey and The New World
-  return `Integration Guide: ${data.productName}
+  return `<div align="center">
 
-Implementation Journey:
-1. Current Infrastructure Analysis
-2. Integration Requirements:
+# Integration Guide
+## ${data.productName}
+
+</div>
+
+---
+
+### 🛠️ **Implementation Journey**
+1. 📊 **Current Infrastructure Analysis**
+2. 🎯 **Integration Requirements:**
    ${data.integrationNeeds}
-3. Deployment Strategy
-4. Performance Optimization
+3. 📋 **Deployment Strategy**
+4. ⚙️ **Performance Optimization**
 
-Path to Transformation:
-${data.keyFeatures.map((feature, index) => `${index + 1}. ${feature}
-   • Implementation steps
-   • Timeline
-   • Success metrics`).join('\n')}
+---
 
-The New Operating Environment:
-• Seamless Workflows
-• Enhanced Efficiency
-• Real-time Insights
-• Scalable Architecture
+### 🔄 **Path to Transformation**
+${data.keyFeatures.map((feature, index) => `
+#### ${index + 1}. **${feature}**
+• 📋 Implementation steps
+• ⏱️ Timeline
+• 📊 Success metrics`).join('\n')}
 
-Success Metrics:
-• Target ROI: ${data.budgetRoi}
-• Efficiency Gains
-• User Adoption
-• System Performance`;
+---
+
+### 🌟 **The New Operating Environment**
+• ⚡ **Seamless Workflows**
+• 📈 **Enhanced Efficiency**
+• 📊 **Real-time Insights**
+• 🔄 **Scalable Architecture**
+
+---
+
+### 📊 **Success Metrics**
+• 💰 **Target ROI:** ${data.budgetRoi}
+• 📈 **Efficiency Gains**
+• 👥 **User Adoption**
+• ⚡ **System Performance**`;
 }
 
 export function generateEmotionalAppeal(data: ProductData): string {
   // Emphasize The Problem and The Moral
-  return `Understanding Your Challenges
+  return `<div align="center">
 
-The Daily Struggle:
-${data.currentChallenges}
+# Understanding Your Challenges
+## We're Here to Help
 
-We Get It:
-Running a business in ${data.industryType} isn't just about numbers. It's about:
-• Your team's success
-• Peace of mind
-• Future growth
-• Lasting impact
+</div>
 
-Our Promise to You:
-${data.uniqueSellingPoint}
+---
 
-Values That Drive Us:
-• Innovation with purpose
-• Client success first
-• Ethical practices
-• Continuous support
+### 💭 **The Daily Struggle**
+> 💡 *"${data.currentChallenges}"*
 
-Why It Matters:
-${data.keyFeatures.map(feature => `• ${feature}: Making a real difference`).join('\n')}
+---
 
-Join others who've trusted ${data.productName} to transform their future.
-Together, let's build something extraordinary.`;
+### 🤝 **We Get It**
+Running a business in **${data.industryType}** isn't just about numbers. It's about:
+• 👥 Your team's success
+• 🌟 Peace of mind
+• 🚀 Future growth
+• 💫 Lasting impact
+
+---
+
+### ⭐ **Our Promise to You**
+> 💫 *"${data.uniqueSellingPoint}"*
+
+---
+
+### 🌟 **Values That Drive Us**
+• 💡 Innovation with purpose
+• 🤝 Client success first
+• ⭐ Ethical practices
+• 📈 Continuous support
+
+---
+
+### 💫 **Why It Matters**
+${data.keyFeatures.map(feature => `• ✨ **${feature}:** *Making a real difference*`).join('\n')}
+
+---
+
+> 🌟 *Join others who've trusted ${data.productName} to transform their future.
+> Together, let's build something extraordinary.*`;
 }
