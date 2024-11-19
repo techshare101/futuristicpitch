@@ -21,6 +21,7 @@ import {
   BookMarked,
   Link,
   Heart,
+  Loader2,
 } from "lucide-react";
 import {
   Accordion,
@@ -28,6 +29,8 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { useToast } from "@/hooks/use-toast";
+import { useEffect, useState } from "react";
 
 interface ContentPreviewProps {
   type:
@@ -43,6 +46,11 @@ interface ContentPreviewProps {
 }
 
 export function ContentPreview({ type, data }: ContentPreviewProps) {
+  const [content, setContent] = useState<string>("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
+
   const getIcon = () => {
     switch (type) {
       case "ads":
@@ -85,26 +93,49 @@ export function ContentPreview({ type, data }: ContentPreviewProps) {
     }
   };
 
-  const content = (() => {
-    switch (type) {
-      case "ads":
-        return generateAd(data);
-      case "blog":
-        return generateBlogPost(data);
-      case "social":
-        return generateSocialPost(data);
-      case "analysis":
-        return generateAnalysis(data);
-      case "features":
-        return generateFeatures(data);
-      case "case-studies":
-        return generateCaseStudies(data);
-      case "integration":
-        return generateIntegration(data);
-      case "emotional":
-        return generateEmotionalAppeal(data);
+  const generateContent = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const generator = (() => {
+        switch (type) {
+          case "ads":
+            return generateAd(data);
+          case "blog":
+            return generateBlogPost(data);
+          case "social":
+            return generateSocialPost(data);
+          case "analysis":
+            return generateAnalysis(data);
+          case "features":
+            return generateFeatures(data);
+          case "case-studies":
+            return generateCaseStudies(data);
+          case "integration":
+            return generateIntegration(data);
+          case "emotional":
+            return generateEmotionalAppeal(data);
+        }
+      })();
+
+      const generatedContent = await generator;
+      setContent(generatedContent);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to generate content";
+      setError(errorMessage);
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
-  })();
+  };
+
+  useEffect(() => {
+    generateContent();
+  }, [type, data]);
 
   return (
     <motion.div
@@ -117,9 +148,7 @@ export function ContentPreview({ type, data }: ContentPreviewProps) {
         whileHover={{ scale: 1.02, rotateX: 2, rotateY: 2 }}
         transition={{ duration: 0.2 }}
       >
-        <Card
-          className="backdrop-blur-xl bg-white/5 border-white/10 overflow-hidden transform-gpu hover:border-white/20 transition-all duration-300 hover:shadow-[0_0_30px_rgba(255,255,255,0.1)]"
-        >
+        <Card className="backdrop-blur-xl bg-white/5 border-white/10 overflow-hidden transform-gpu hover:border-white/20 transition-all duration-300 hover:shadow-[0_0_30px_rgba(255,255,255,0.1)]">
           <CardContent className="p-6">
             <motion.div
               className="flex justify-between items-start mb-4"
@@ -138,7 +167,7 @@ export function ContentPreview({ type, data }: ContentPreviewProps) {
                   {getTitle()}
                 </h3>
               </div>
-              <CopyButton text={content} />
+              {content && <CopyButton text={content} />}
             </motion.div>
 
             <Accordion type="single" collapsible className="w-full">
@@ -158,7 +187,24 @@ export function ContentPreview({ type, data }: ContentPreviewProps) {
                     transition={{ duration: 0.3 }}
                     className="text-white/90 whitespace-pre-wrap prose prose-invert max-w-none"
                   >
-                    {content}
+                    {isLoading ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="w-6 h-6 animate-spin text-white/60" />
+                        <span className="ml-2 text-white/60">Generating content...</span>
+                      </div>
+                    ) : error ? (
+                      <div className="text-red-400 py-4">
+                        {error}
+                        <button
+                          onClick={generateContent}
+                          className="ml-2 text-cyan-400 hover:text-cyan-300 transition-colors"
+                        >
+                          Try again
+                        </button>
+                      </div>
+                    ) : (
+                      content
+                    )}
                   </motion.div>
                 </AccordionContent>
               </AccordionItem>

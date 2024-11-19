@@ -1,12 +1,13 @@
 import type { Express, Request, Response, NextFunction } from "express";
-import { createUser, verifyEmail, generateToken } from "./auth";
-import { signUpSchema, verifyEmailSchema, projectSchema } from "../db/schema";
+import { createUser, generateToken } from "./auth";
+import { signUpSchema, projectSchema } from "../db/schema";
 import { db } from "../db";
 import { users, projects } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import { ZodError } from "zod";
 import { desc } from "drizzle-orm";
+import Anthropic from '@anthropic-ai/sdk';
 
 // Enhanced error logging function
 function logError(context: string, error: unknown, additionalInfo: Record<string, any> = {}) {
@@ -17,6 +18,63 @@ function logError(context: string, error: unknown, additionalInfo: Record<string
     ...additionalInfo,
     timestamp: new Date().toISOString()
   });
+}
+
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+});
+
+const STORY_CYCLE_PROMPT = `
+Prompt for Creating a Story-Driven Brand Narrative:
+1. The Backdrop: Consider the origins and initial need
+2. The Problem: Address specific challenges and emotional impact
+3. The Hero's Entry: Present the solution's defining moment
+4. The Journey: Acknowledge and overcome obstacles
+5. The Victory: Showcase transformation through success stories
+6. The New World: Illustrate the positive changes post-transformation
+7. Resolving Complexities: Explain complex features simply
+8. The Moral: Emphasize the ethical message and trust factors
+`;
+
+async function generateContent(data: any, options: { type: string, focusPoints: string[] }) {
+  const { type, focusPoints } = options;
+  
+  const prompt = `
+Create a ${type} for ${data.productName} by ${data.companyName}.
+
+Product Information:
+- Company: ${data.companyName}
+- Company Description: ${data.companyDescription}
+- Industry: ${data.industryType}
+- Current Challenges: ${data.currentChallenges}
+- Unique Selling Point: ${data.uniqueSellingPoint}
+- Key Features: ${data.keyFeatures.join(', ')}
+- Target Audience: ${data.targetAudience}
+- Integration Needs: ${data.integrationNeeds}
+- ROI/Budget Expectations: ${data.budgetRoi}
+
+Focus on these aspects of the story cycle: ${focusPoints.join(', ')}
+
+Format the output using markdown with:
+- Centered titles using <div align="center">
+- Proper heading hierarchy (#, ##, ###)
+- Beautiful lists with bullet points (•)
+- Blockquotes for important statements (>)
+- Emojis for visual appeal
+- Section dividers using horizontal rules (---)
+`;
+
+  const message = await anthropic.messages.create({
+    model: 'claude-3-opus-20240229',
+    max_tokens: 4000,
+    messages: [{
+      role: 'user',
+      content: prompt,
+    }],
+    system: STORY_CYCLE_PROMPT,
+  });
+
+  return message.content[0].text;
 }
 
 async function ensurePublicUser() {
@@ -353,5 +411,25 @@ export function registerRoutes(app: Express) {
         ? 'Internal server error' 
         : err.message
     });
+  });
+
+  // Add content generation endpoint
+  app.post("/api/generate-content", async (req, res) => {
+    try {
+      const { data, type, focusPoints } = req.body;
+      
+      if (!data || !type || !focusPoints) {
+        return res.status(400).json({ error: "Missing required parameters" });
+      }
+
+      const content = await generateContent(data, { type, focusPoints });
+      res.json({ content });
+    } catch (error) {
+      logError("generateContent", error, { type: req.body.type });
+      res.status(500).json({ 
+        error: "Failed to generate content",
+        details: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined
+      });
+    }
   });
 }
