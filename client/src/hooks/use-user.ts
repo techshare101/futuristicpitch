@@ -17,7 +17,6 @@ interface AuthError extends Error {
   code?: string;
 }
 
-// Enhanced token validation with improved error handling
 const validateToken = (token: string | null): TokenValidationResult => {
   console.log("[useUser] Starting token validation");
   
@@ -72,14 +71,20 @@ const validateToken = (token: string | null): TokenValidationResult => {
   }
 };
 
-// Ensure consistent Bearer prefix handling
-const ensureBearerPrefix = (token: string): string => {
-  if (!token) return token;
-  const cleanToken = token.replace(/^Bearer\s+/i, '').trim();
-  return `Bearer ${cleanToken}`;
+// Updated token storage function
+const setToken = (token: string) => {
+  if (!token) return;
+  const tokenWithPrefix = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+  localStorage.setItem(TOKEN_KEY, tokenWithPrefix);
 };
 
-// Enhanced request retry mechanism
+// Updated token retrieval function
+const getToken = () => {
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (!token) return null;
+  return token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+};
+
 const retryRequest = async <T>(
   fn: () => Promise<T>,
   maxRetries: number = MAX_RETRIES,
@@ -127,56 +132,6 @@ export function useUser() {
       }
     }
   });
-
-  // Enhanced token storage with validation
-  const setToken = useCallback((token: string) => {
-    try {
-      if (!token || typeof token !== 'string') {
-        throw new Error("Invalid token provided");
-      }
-
-      // Ensure token has Bearer prefix before storing
-      const tokenWithPrefix = ensureBearerPrefix(token);
-      const validationResult = validateToken(tokenWithPrefix);
-      
-      if (!validationResult.isValid) {
-        throw new Error(validationResult.error || "Token validation failed");
-      }
-
-      localStorage.setItem(TOKEN_KEY, tokenWithPrefix);
-      console.log("[useUser] Token stored successfully");
-    } catch (error) {
-      console.error("[useUser] Token storage error:", error);
-      clearToken();
-      throw error;
-    }
-  }, []);
-
-  // Enhanced token retrieval with validation
-  const getToken = useCallback((): string | null => {
-    try {
-      const token = localStorage.getItem(TOKEN_KEY);
-      console.log("[useUser] Retrieving token:", token ? "exists" : "not found");
-      
-      if (!token) return null;
-
-      // Ensure Bearer prefix and validate
-      const tokenWithPrefix = ensureBearerPrefix(token);
-      const validationResult = validateToken(tokenWithPrefix);
-      
-      if (!validationResult.isValid) {
-        console.error("[useUser] Stored token is invalid:", validationResult.error);
-        clearToken();
-        return null;
-      }
-
-      return tokenWithPrefix;
-    } catch (error) {
-      console.error("[useUser] Token retrieval error:", error);
-      clearToken();
-      return null;
-    }
-  }, []);
 
   const clearToken = useCallback(() => {
     console.log("[useUser] Clearing auth token");

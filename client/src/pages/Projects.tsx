@@ -56,27 +56,29 @@ type ApiError = {
   message: string;
 };
 
+const TOKEN_KEY = 'auth_token'; // Assuming this is your token storage key
+
 async function fetchWithAuth(url: string, options: RequestInit = {}) {
-  try {
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        ...options.headers,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.message || 'An error occurred');
-    }
-
-    return data;
-  } catch (error) {
-    console.error('API Error:', error);
-    throw error;
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (!token) {
+    throw new Error('No authentication token found');
   }
+  
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      ...options.headers,
+      'Authorization': token.startsWith('Bearer ') ? token : `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const data = await response.json();
+    throw new Error(data.message || 'Request failed');
+  }
+
+  return response.json();
 }
 
 export default function Projects() {
