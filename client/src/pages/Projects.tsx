@@ -3,7 +3,6 @@ import { Plus, Pencil, Trash2, AlertCircle, Loader2 } from "lucide-react";
 import useSWR from "swr";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
-import { useUser } from "@/hooks/use-user";
 import {
   Dialog,
   DialogContent,
@@ -57,29 +56,16 @@ type ApiError = {
   message: string;
 };
 
-const TOKEN_KEY = 'auth_token'; // Assuming this is your token storage key
-
-async function fetchWithAuth(url: string, options: RequestInit = {}) {
-  const token = localStorage.getItem('auth_token');
-  
-  if (!token) {
-    throw new Error('Authentication required');
-  }
-  
+async function fetchProjects(url: string, options: RequestInit = {}) {
   const response = await fetch(url, {
     ...options,
     headers: {
       ...options.headers,
-      'Authorization': token,
       'Content-Type': 'application/json',
     },
   });
 
   if (!response.ok) {
-    if (response.status === 401) {
-      localStorage.removeItem('auth_token');
-      throw new Error('Authentication required');
-    }
     const data = await response.json();
     throw new Error(data.error || data.message || 'Request failed');
   }
@@ -91,13 +77,8 @@ export default function Projects() {
   const [, setLocation] = useLocation();
   const { data: projects, error: projectsError, mutate } = useSWR<Project[], ApiError>(
     '/api/projects',
-    fetchWithAuth,
+    fetchProjects,
     {
-      onError: (error) => {
-        if (error.message.includes('Unauthorized')) {
-          setLocation('/login');
-        }
-      },
       revalidateOnFocus: true,
       refreshInterval: 30000,
     }
@@ -145,13 +126,21 @@ export default function Projects() {
     setFormError(null);
     
     try {
-      const response = await fetchWithAuth(
+      const response = await fetch(
         selectedProject ? `/api/projects/${selectedProject.id}` : '/api/projects',
         {
           method: selectedProject ? 'PUT' : 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
           body: JSON.stringify(formData),
         }
       );
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Operation failed');
+      }
 
       await mutate();
       setIsDialogOpen(false);
@@ -179,9 +168,14 @@ export default function Projects() {
 
   const handleDelete = async (id: string) => {
     try {
-      await fetchWithAuth(`/api/projects/${id}`, {
+      const response = await fetch(`/api/projects/${id}`, {
         method: 'DELETE',
       });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to delete project');
+      }
 
       await mutate();
       toast({
@@ -197,10 +191,6 @@ export default function Projects() {
         description: errorMessage,
         variant: "destructive",
       });
-
-      if (errorMessage.includes('Unauthorized')) {
-        setLocation('/login');
-      }
     }
   };
 
@@ -253,7 +243,7 @@ export default function Projects() {
       <div className="container mx-auto">
         <ErrorBoundary>
           <div className="flex justify-between items-center mb-6">
-            <h1 className="text-3xl font-bold text-white">My Projects</h1>
+            <h1 className="text-3xl font-bold text-white">Projects</h1>
             <Dialog open={isDialogOpen} onOpenChange={(open) => {
               setIsDialogOpen(open);
               if (!open) {
