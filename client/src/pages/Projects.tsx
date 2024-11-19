@@ -232,7 +232,7 @@ export default function Projects() {
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-[#2a0066] to-slate-900 p-8">
         <div className="container mx-auto flex flex-col items-center justify-center h-64">
           <Loader2 className="h-8 w-8 animate-spin text-white/60 mb-4" />
-          <p className="text-white/60">Loading your projects...</p>
+          <p className="text-white/60">Loading projects...</p>
         </div>
       </div>
     );
