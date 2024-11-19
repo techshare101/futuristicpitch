@@ -11,17 +11,34 @@ if (!process.env.DATABASE_URL) {
 const MAX_RETRIES = 5;
 const INITIAL_RETRY_DELAY = 2000; // 2 seconds
 const MAX_RETRY_DELAY = 30000; // 30 seconds
+const MAX_POOL_SIZE = process.env.NODE_ENV === 'production' ? 20 : 10;
+const IDLE_TIMEOUT = 30000; // 30 seconds
+const CONNECTION_TIMEOUT = 10000; // 10 seconds
+
+// Enhanced SSL configuration based on environment
+const getSslConfig = () => {
+  if (process.env.NODE_ENV !== 'production') {
+    return false;
+  }
+
+  return {
+    rejectUnauthorized: process.env.POSTGRES_SSL_REJECT_UNAUTHORIZED === 'false' ? false : true,
+    ca: process.env.POSTGRES_SSL_CA,
+    key: process.env.POSTGRES_SSL_KEY,
+    cert: process.env.POSTGRES_SSL_CERT,
+  };
+};
 
 // Create a PostgreSQL connection pool with improved configuration
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? {
-    rejectUnauthorized: process.env.SSL_REJECT_UNAUTHORIZED === 'true'
-  } : false,
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
+  ssl: getSslConfig(),
+  max: MAX_POOL_SIZE,
+  idleTimeoutMillis: IDLE_TIMEOUT,
+  connectionTimeoutMillis: CONNECTION_TIMEOUT,
   application_name: 'product-pitch-generator',
+  keepAlive: true,
+  keepAliveInitialDelayMillis: 10000,
 });
 
 // Add event listeners for pool events
@@ -31,6 +48,14 @@ pool.on('error', (err) => {
 
 pool.on('connect', () => {
   console.log('[Migrate] New client connected to the pool');
+});
+
+pool.on('acquire', () => {
+  console.log('[Migrate] Client acquired from pool');
+});
+
+pool.on('remove', () => {
+  console.log('[Migrate] Client removed from pool');
 });
 
 const db = drizzle(pool);
@@ -60,6 +85,23 @@ async function runMigrations(retryCount = 0): Promise<boolean> {
   }
 }
 
+// Enhanced health check function
+async function checkDatabaseHealth(): Promise<boolean> {
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('SELECT 1');
+    return true;
+  } catch (error) {
+    console.error('[Migrate] Database health check failed:', error);
+    return false;
+  } finally {
+    if (client) {
+      client.release();
+    }
+  }
+}
+
 // Run migrations with enhanced error handling and cleanup
 async function main() {
   console.log("[Migrate] Starting database migration process...");
@@ -67,11 +109,12 @@ async function main() {
   
   try {
     // Test database connection before migrations
-    client = await pool.connect();
-    await client.query('SELECT version()');
-    console.log("[Migrate] Database connection test successful");
-    client.release();
+    const isHealthy = await checkDatabaseHealth();
+    if (!isHealthy) {
+      throw new Error('Database health check failed');
+    }
     
+    console.log("[Migrate] Database health check passed");
     await runMigrations();
   } catch (error) {
     console.error("[Migrate] Critical migration error:", error);
@@ -101,6 +144,18 @@ process.on('SIGINT', async () => {
     console.error("[Migrate] Error during graceful shutdown:", error);
     process.exit(1);
   }
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', async (error) => {
+  console.error("[Migrate] Uncaught exception:", error);
+  try {
+    await pool.end();
+    console.log("[Migrate] Database pool closed due to uncaught exception");
+  } catch (err) {
+    console.error("[Migrate] Error closing pool after uncaught exception:", err);
+  }
+  process.exit(1);
 });
 
 main().catch((err) => {
