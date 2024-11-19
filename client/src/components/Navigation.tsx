@@ -3,21 +3,36 @@ import { Button } from "@/components/ui/button";
 import { Home, FolderKanban, LogIn, LogOut, Loader2 } from "lucide-react";
 import { useUser } from "@/hooks/use-user";
 import { useToast } from "@/hooks/use-toast";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 
 export function Navigation() {
   const { user, isLoading, logout, getToken } = useUser();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [isNavigating, setIsNavigating] = useState(false);
+  const navigationTimeoutRef = useRef<NodeJS.Timeout>();
+  const unmountedRef = useRef(false);
 
-  // Handle token validation on mount
+  // Handle token validation on mount and path changes
   useEffect(() => {
-    const token = getToken();
-    if (!token && window.location.pathname !== '/login' && window.location.pathname !== '/') {
-      console.log("[Navigation] No valid token found on mount, redirecting to login");
-      setLocation('/login');
-    }
+    const validateCurrentPath = () => {
+      const token = getToken();
+      const currentPath = window.location.pathname;
+      
+      if (!token && currentPath !== '/login' && currentPath !== '/') {
+        console.log("[Navigation] No valid token found on mount, redirecting to login");
+        setLocation('/login');
+      }
+    };
+
+    validateCurrentPath();
+
+    return () => {
+      unmountedRef.current = true;
+      if (navigationTimeoutRef.current) {
+        clearTimeout(navigationTimeoutRef.current);
+      }
+    };
   }, [getToken, setLocation]);
 
   const handleLogout = async () => {
@@ -50,7 +65,9 @@ export function Navigation() {
         variant: "destructive",
       });
     } finally {
-      setIsNavigating(false);
+      if (!unmountedRef.current) {
+        setIsNavigating(false);
+      }
     }
   };
 
@@ -61,6 +78,7 @@ export function Navigation() {
       setIsNavigating(true);
       const token = getToken();
       
+      // Check if navigation requires authentication
       if (!token && path !== '/login' && path !== '/') {
         console.log("[Navigation] No valid token found, redirecting to login");
         toast({
@@ -68,16 +86,24 @@ export function Navigation() {
           description: "Please log in to access this page",
           variant: "destructive",
         });
+        
+        // Store return path before redirecting
+        sessionStorage.setItem('returnTo', path);
         setLocation('/login');
         return;
       }
 
-      // Store return path for post-login redirect
-      if (path !== '/login' && !token) {
-        sessionStorage.setItem('returnTo', path);
+      // Debounce navigation to prevent rapid redirects
+      if (navigationTimeoutRef.current) {
+        clearTimeout(navigationTimeoutRef.current);
       }
 
-      setLocation(path);
+      navigationTimeoutRef.current = setTimeout(() => {
+        if (!unmountedRef.current) {
+          setLocation(path);
+        }
+      }, 50);
+
     } catch (error) {
       console.error("[Navigation] Navigation error:", error);
       toast({
@@ -86,7 +112,9 @@ export function Navigation() {
         variant: "destructive",
       });
     } finally {
-      setIsNavigating(false);
+      if (!unmountedRef.current) {
+        setIsNavigating(false);
+      }
     }
   }, [getToken, setLocation, toast, isNavigating]);
 

@@ -16,6 +16,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [redirectAttempts, setRedirectAttempts] = useState(0);
   const redirectInProgress = useRef(false);
   const authCheckInProgress = useRef(false);
   const unmountedRef = useRef(false);
@@ -24,10 +25,20 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { toast } = useToast();
   const { user, error, getToken } = useUser();
 
-  // Enhanced redirect handling with debounce and path tracking
+  // Enhanced redirect handling with attempt counting
   const handleRedirect = useCallback((path: string) => {
     if (redirectInProgress.current || unmountedRef.current) {
       console.log("[ProtectedRoute] Redirect blocked - already in progress or unmounted");
+      return;
+    }
+
+    if (redirectAttempts >= 3) {
+      console.log("[ProtectedRoute] Maximum redirect attempts reached");
+      toast({
+        title: "Navigation Error",
+        description: "Too many redirect attempts. Please try again later.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -48,6 +59,9 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
       }
     }
 
+    // Increment redirect attempts
+    setRedirectAttempts(prev => prev + 1);
+
     // Debounce redirect to prevent rapid consecutive redirects
     debounceTimeoutRef.current = setTimeout(() => {
       if (!unmountedRef.current) {
@@ -61,9 +75,9 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
         }, 100);
       }
     }, 50);
-  }, [setLocation]);
+  }, [setLocation, redirectAttempts, toast]);
 
-  // Enhanced authentication check with proper error handling and state management
+  // Enhanced authentication check with proper error handling
   const checkAuthentication = useCallback(async () => {
     if (authCheckInProgress.current || unmountedRef.current) {
       console.log("[ProtectedRoute] Auth check blocked - already in progress or unmounted");
@@ -85,6 +99,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
         console.log("[ProtectedRoute] User authenticated:", user.id);
         setIsAuthenticated(true);
         setAuthError(null);
+        setRedirectAttempts(0); // Reset attempts on successful auth
 
         // Handle post-login redirect
         const returnTo = sessionStorage.getItem('returnTo');
@@ -105,15 +120,18 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
       setIsAuthenticated(false);
       setAuthError(errorMessage);
       
-      toast({
-        title: "Authentication Required",
-        description: errorMessage,
-        variant: "destructive",
-      });
+      // Only show toast and redirect if we haven't exceeded attempts
+      if (redirectAttempts < 3) {
+        toast({
+          title: "Authentication Required",
+          description: errorMessage,
+          variant: "destructive",
+        });
 
-      const currentPath = window.location.pathname;
-      if (currentPath !== '/login' && currentPath !== '/') {
-        handleRedirect('/login');
+        const currentPath = window.location.pathname;
+        if (currentPath !== '/login' && currentPath !== '/') {
+          handleRedirect('/login');
+        }
       }
     } finally {
       if (!unmountedRef.current) {
@@ -121,22 +139,23 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
         authCheckInProgress.current = false;
       }
     }
-  }, [user, error, getToken, handleRedirect, toast, isLoading]);
+  }, [user, error, getToken, handleRedirect, toast, isLoading, redirectAttempts]);
 
   // Component lifecycle management with cleanup
   useEffect(() => {
     unmountedRef.current = false;
+    setRedirectAttempts(0); // Reset attempts on mount
     console.log("[ProtectedRoute] Component mounted");
 
-    // Initial auth check with retry mechanism
     const performInitialCheck = async () => {
       try {
         await checkAuthentication();
       } catch (error) {
         if (!unmountedRef.current) {
           console.error("[ProtectedRoute] Initial auth check failed:", error);
-          // Retry after delay
-          authTimeoutRef.current = setTimeout(performInitialCheck, 2000);
+          if (redirectAttempts < 3) {
+            authTimeoutRef.current = setTimeout(performInitialCheck, 2000);
+          }
         }
       }
     };
@@ -147,6 +166,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
       unmountedRef.current = true;
       redirectInProgress.current = false;
       authCheckInProgress.current = false;
+      setRedirectAttempts(0); // Reset attempts on unmount
       if (authTimeoutRef.current) {
         clearTimeout(authTimeoutRef.current);
       }
@@ -155,7 +175,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
       }
       console.log("[ProtectedRoute] Component cleanup completed");
     };
-  }, [checkAuthentication]);
+  }, [checkAuthentication, redirectAttempts]);
 
   // Auth state changes handler with debounce
   useEffect(() => {
@@ -164,10 +184,12 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
         clearTimeout(debounceTimeoutRef.current);
       }
       debounceTimeoutRef.current = setTimeout(() => {
-        checkAuthentication();
+        if (redirectAttempts < 3) {
+          checkAuthentication();
+        }
       }, 100);
     }
-  }, [user, error, checkAuthentication, isLoading]);
+  }, [user, error, checkAuthentication, isLoading, redirectAttempts]);
 
   if (isLoading) {
     return (
@@ -189,8 +211,13 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
             <AlertTitle>Authentication Required</AlertTitle>
             <AlertDescription>{authError}</AlertDescription>
             <Button 
-              onClick={() => handleRedirect('/login')}
+              onClick={() => {
+                if (redirectAttempts < 3) {
+                  handleRedirect('/login');
+                }
+              }}
               className="mt-4 w-full bg-white/10 hover:bg-white/20 text-white"
+              disabled={redirectAttempts >= 3}
             >
               Go to Login
             </Button>

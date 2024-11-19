@@ -27,7 +27,6 @@ const validateToken = (token: string | null): TokenValidationResult => {
   }
 
   try {
-    // Ensure Bearer prefix
     const tokenPart = token.startsWith('Bearer ') ? token.split(' ')[1] : token;
     
     // Validate JWT structure
@@ -75,6 +74,7 @@ const validateToken = (token: string | null): TokenValidationResult => {
 
 // Ensure consistent Bearer prefix handling
 const ensureBearerPrefix = (token: string): string => {
+  if (!token) return token;
   const cleanToken = token.replace(/^Bearer\s+/i, '').trim();
   return `Bearer ${cleanToken}`;
 };
@@ -135,7 +135,8 @@ export function useUser() {
         throw new Error("Invalid token provided");
       }
 
-      const tokenWithPrefix = token.startsWith('Bearer ') ? token : ensureBearerPrefix(token);
+      // Ensure token has Bearer prefix before storing
+      const tokenWithPrefix = ensureBearerPrefix(token);
       const validationResult = validateToken(tokenWithPrefix);
       
       if (!validationResult.isValid) {
@@ -160,7 +161,7 @@ export function useUser() {
       if (!token) return null;
 
       // Ensure Bearer prefix and validate
-      const tokenWithPrefix = token.startsWith('Bearer ') ? token : ensureBearerPrefix(token);
+      const tokenWithPrefix = ensureBearerPrefix(token);
       const validationResult = validateToken(tokenWithPrefix);
       
       if (!validationResult.isValid) {
