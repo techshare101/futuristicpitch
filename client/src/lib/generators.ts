@@ -1,200 +1,241 @@
 import type { ProductData } from "../pages/Home";
 
-export function generateAd(data: ProductData): string {
-  return `🚀 Introducing ${data.productName} by ${data.companyName}!
+const STORY_CYCLE_PROMPT = `
+Prompt for Creating a Story-Driven Brand Narrative:
+1. The Backdrop: Consider the origins and initial need
+2. The Problem: Address specific challenges and emotional impact
+3. The Hero's Entry: Present the solution's defining moment
+4. The Journey: Acknowledge and overcome obstacles
+5. The Victory: Showcase transformation through success stories
+6. The New World: Illustrate the positive changes post-transformation
+7. Resolving Complexities: Explain complex features simply
+8. The Moral: Emphasize the ethical message and trust factors
+`;
 
+export function generateAd(data: ProductData): string {
+  // Focus on The Hero's Entry and Victory
+  return `🌟 Introducing ${data.productName} - The Game-Changer in ${data.industryType}!
+
+Your Defining Moment Has Arrived:
 ${data.uniqueSellingPoint}
 
-Key Features:
-${data.keyFeatures.map(feature => `✨ ${feature}`).join('\n')}
+Success Story:
+Transform your business like our clients who achieved ${data.budgetRoi}
+
+✨ Key Transformations:
+${data.keyFeatures.map(feature => `• ${feature}`).join('\n')}
 
 Perfect for: ${data.targetAudience}
 
-ROI Expectations: ${data.budgetRoi}
-
-Learn more: [Link] #Innovation #Technology`;
+Ready to be the next success story? Learn more: [Link] 
+#Innovation #Success #${data.industryType.replace(/\s+/g, '')}`;
 }
 
 export function generateBlogPost(data: ProductData): string {
-  const formattedTitle = `🔥 Breakthrough Alert: How ${data.productName} is Revolutionizing ${data.industryType} in 2024`;
-  
-  return `${formattedTitle}
+  // Use the full 8-step cycle
+  return `The Evolution of ${data.productName}: A Journey of Innovation
 
-Are you tired of ${data.currentChallenges.toLowerCase()}? You're not alone. In today's fast-paced ${data.industryType} landscape, businesses face unprecedented challenges that demand innovative solutions.
+Origins & Need:
+In the ever-evolving landscape of ${data.industryType}, ${data.companyName} recognized a critical gap. ${data.companyDescription}
 
-The Game-Changing Solution You've Been Waiting For
-${data.companyName}, a ${data.companyDescription}, has developed ${data.productName} - ${data.uniqueSellingPoint.toLowerCase()}
+The Challenge:
+${data.currentChallenges}
 
-🎯 Why ${data.productName} Stands Out:
-${data.description}
+A Revolutionary Solution Emerges:
+Enter ${data.productName} - ${data.uniqueSellingPoint}
 
-💡 Transform Your Business with These Powerful Features:
-${data.keyFeatures.map(feature => `• ${feature}: Unlock new possibilities and drive growth`).join('\n')}
-
-🌟 Real Results, Real Impact
-Leading companies in ${data.industryType} have already experienced remarkable transformations:
-• 83% reduction in operational overhead
-• 2.5x increase in team productivity
-• ROI achievement: ${data.budgetRoi}
-
-🔗 Seamless Integration That Works
+Overcoming Obstacles:
+Through rigorous development and testing, we addressed:
 ${data.integrationNeeds}
 
-👥 Perfect For:
-${data.targetAudience}
+Success Stories:
+Our clients have experienced remarkable transformations:
+• ${data.budgetRoi}
+${data.keyFeatures.map(feature => `• ${feature}: Driving real results`).join('\n')}
 
-🎉 Limited Time Offer
-Start your journey today and receive:
-• Free consultation session
-• Premium onboarding support
-• 30-day money-back guarantee
+The New Reality:
+Post-implementation, our clients experience:
+• Streamlined operations
+• Enhanced productivity
+• Improved ROI
+• Better decision-making
 
-⚡ Don't Wait - The Future is Here
-While others struggle with outdated solutions, industry leaders are already leveraging ${data.productName} to stay ahead. Join them and transform your business today.
+Simple Yet Powerful:
+${data.description}
 
-🔥 Special Launch Offer - Save 25% This Week Only!
-Book your demo now: [Link]
-Contact us: [Contact Information]
+Our Promise:
+At ${data.companyName}, we're committed to:
+• Innovation with purpose
+• Client success
+• Continuous improvement
+• Ethical business practices
 
-Ready to revolutionize your business? Click here to get started! ➡️ [CTA Button]
-
-#${data.industryType.replace(/\s+/g, '')} #Innovation #BusinessTransformation`;
+Ready to transform your business? Contact us today!`;
 }
 
 export function generateSocialPost(data: ProductData): string {
-  return `🔥 Game-changer alert! 🔥
+  // Emphasize The Problem and The New World
+  return `🔍 Struggling with ${data.currentChallenges.toLowerCase()}?
 
-Meet ${data.productName} - ${data.uniqueSellingPoint}
+Imagine a world where:
+✨ ${data.uniqueSellingPoint}
+✨ Your team achieves ${data.budgetRoi}
+✨ Daily challenges become opportunities
 
-${data.description.slice(0, 100)}...
+${data.productName} makes this reality possible.
 
-Perfect for: ${data.targetAudience}
-Industry: ${data.industryType}
-By: ${data.companyName}
+Join the future of ${data.industryType} with ${data.companyName}
 
-#Innovation #Tech #Future #${data.industryType.replace(/\s+/g, '')}`;
+#Innovation #FutureOfWork #${data.industryType.replace(/\s+/g, '')}`;
 }
 
 export function generateAnalysis(data: ProductData): string {
-  return `Company Challenges Analysis for ${data.companyName}
+  // Focus on Journey and Resolving Complexities
+  return `Strategic Analysis: Implementing ${data.productName}
 
-Current Industry Challenges:
-${data.currentChallenges}
+Journey to Excellence:
+1. Current State Assessment:
+   • Industry: ${data.industryType}
+   • Challenges: ${data.currentChallenges}
 
-How ${data.productName} Addresses These Challenges:
-1. Industry Fit: Tailored for ${data.industryType}
-2. Integration Solution: ${data.integrationNeeds}
-3. ROI Potential: ${data.budgetRoi}
+2. Implementation Pathway:
+   • Integration Approach: ${data.integrationNeeds}
+   • ROI Timeline: ${data.budgetRoi}
 
-Recommended Implementation Strategy:
-1. Initial deployment focusing on core features
-2. Phased integration with existing systems
-3. ROI monitoring and optimization
-4. Scaling based on performance metrics
+Simplifying Complex Solutions:
+${data.keyFeatures.map((feature, index) => `${index + 1}. ${feature}
+   • Implementation strategy
+   • Expected outcomes
+   • Performance metrics`).join('\n')}
 
-Risk Mitigation:
-• Comprehensive training and support
-• Regular performance assessments
-• Continuous feedback integration
-• Agile adaptation to changing needs`;
+Technical Framework:
+• Architecture Overview
+• Integration Points
+• Scalability Measures
+• Security Protocols
+
+Risk Mitigation Strategy:
+1. Comprehensive training
+2. Phased deployment
+3. Continuous monitoring
+4. Regular optimization`;
 }
 
 export function generateFeatures(data: ProductData): string {
-  return `Key User Features of ${data.productName}
+  // Highlight The Hero's Entry and Resolving Complexities
+  return `${data.productName}: Transformative Features
 
-Core Functionality:
-${data.keyFeatures.map((feature, index) => `${index + 1}. ${feature}`).join('\n')}
+Game-Changing Solution:
+${data.uniqueSellingPoint}
 
-Integration Capabilities:
+Core Capabilities:
+${data.keyFeatures.map((feature, index) => `${index + 1}. ${feature}
+   • How it works
+   • Business impact
+   • Implementation ease`).join('\n')}
+
+Integration Framework:
 ${data.integrationNeeds}
 
-Target User Benefits:
-1. Streamlined Workflows
-2. Improved Efficiency
-3. Cost Reduction
-4. Enhanced Productivity
+Simplified Technology Stack:
+• Intuitive Interface
+• Seamless Integration
+• Real-time Analytics
+• Automated Workflows
 
-Technical Specifications:
-• Modern Architecture
-• Scalable Infrastructure
-• Secure Data Management
-• Real-time Updates
-
-Support and Training:
-• Comprehensive documentation
-• 24/7 technical support
-• Regular training sessions
-• Update notifications`;
+Support Infrastructure:
+• 24/7 Technical Support
+• Training Resources
+• Implementation Guides
+• Best Practices`;
 }
 
 export function generateCaseStudies(data: ProductData): string {
-  return `Success Stories with ${data.productName}
+  // Emphasize The Victory and The New World
+  return `${data.productName} Success Story
 
-Case Study 1: Industry Pioneer
-• Company Profile: Leading ${data.industryType} organization
-• Challenge: Similar to "${data.currentChallenges}"
-• Solution: Implemented ${data.productName}
-• Result: Achieved ${data.budgetRoi} within expected timeframe
+Client Profile:
+Industry: ${data.industryType}
+Challenge: ${data.currentChallenges}
 
-Case Study 2: Growth Champion
-• Company Profile: Fast-growing startup in ${data.industryType}
-• Challenge: Scaling operations efficiently
-• Solution: ${data.productName} integration
-• Result: Streamlined processes and reduced operational costs
+Transformation Highlights:
+• Achievement: ${data.budgetRoi}
+• Implementation: ${data.integrationNeeds}
 
-Key Learnings:
-1. Importance of proper implementation
-2. Value of user training
-3. ROI achievement timeline
-4. Best practices for success`;
+Key Victories:
+${data.keyFeatures.map(feature => `• ${feature}: Delivering measurable impact`).join('\n')}
+
+The New Reality:
+1. Streamlined Operations
+2. Enhanced Productivity
+3. Improved ROI
+4. Better Decision-Making
+
+Client Testimonial:
+"${data.productName} transformed our approach to ${data.industryType}"
+
+Looking Forward:
+• Continuous Improvement
+• Scaling Success
+• Future Innovations`;
 }
 
 export function generateIntegration(data: ProductData): string {
-  return `Marketing Integration Guide for ${data.productName}
+  // Focus on Journey and The New World
+  return `Integration Guide: ${data.productName}
 
-Integration Capabilities:
-${data.integrationNeeds}
+Implementation Journey:
+1. Current Infrastructure Analysis
+2. Integration Requirements:
+   ${data.integrationNeeds}
+3. Deployment Strategy
+4. Performance Optimization
 
-Marketing Channels:
-1. Social Media Platforms
-2. Email Marketing Systems
-3. CRM Integration
-4. Analytics Tools
-5. Content Management Systems
+Path to Transformation:
+${data.keyFeatures.map((feature, index) => `${index + 1}. ${feature}
+   • Implementation steps
+   • Timeline
+   • Success metrics`).join('\n')}
 
-Implementation Strategy:
-• Phase 1: Core system integration
-• Phase 2: Data synchronization
-• Phase 3: Automated workflows
-• Phase 4: Performance optimization
-
-ROI Tracking:
-${data.budgetRoi}
+The New Operating Environment:
+• Seamless Workflows
+• Enhanced Efficiency
+• Real-time Insights
+• Scalable Architecture
 
 Success Metrics:
-• User adoption rate
-• Process efficiency
-• Cost savings
-• Revenue impact`;
+• Target ROI: ${data.budgetRoi}
+• Efficiency Gains
+• User Adoption
+• System Performance`;
 }
 
 export function generateEmotionalAppeal(data: ProductData): string {
-  return `Why ${data.productName} Matters
+  // Emphasize The Problem and The Moral
+  return `Understanding Your Challenges
 
-Your Current Challenges:
+The Daily Struggle:
 ${data.currentChallenges}
 
-Our Promise:
-We understand the pressures of running a business in ${data.industryType}. ${data.productName} isn't just a tool - it's your partner in success.
+We Get It:
+Running a business in ${data.industryType} isn't just about numbers. It's about:
+• Your team's success
+• Peace of mind
+• Future growth
+• Lasting impact
 
-How We Make a Difference:
-• Reducing daily stress through automation
-• Empowering your team with better tools
-• Creating more time for what matters
-• Building confidence in your operations
+Our Promise to You:
+${data.uniqueSellingPoint}
 
-The Human Touch:
-While ${data.productName} offers cutting-edge technology, our focus remains on the people using it. We're here to support your journey, celebrate your successes, and help you overcome challenges.
+Values That Drive Us:
+• Innovation with purpose
+• Client success first
+• Ethical practices
+• Continuous support
 
-Join others who have transformed their work lives with ${data.productName}.`;
+Why It Matters:
+${data.keyFeatures.map(feature => `• ${feature}: Making a real difference`).join('\n')}
+
+Join others who've trusted ${data.productName} to transform their future.
+Together, let's build something extraordinary.`;
 }
