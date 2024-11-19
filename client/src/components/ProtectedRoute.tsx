@@ -48,28 +48,21 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     
     try {
       const token = getToken();
+      console.log("[ProtectedRoute] Checking auth with token:", !!token);
+
       if (!token) {
         throw new Error("Authentication required");
-      }
-
-      // Validate token format
-      const isValidToken = token.startsWith('Bearer ') && token.split(' ')[1].length > 0;
-      if (!isValidToken) {
-        throw new Error("Invalid token format");
       }
 
       if (user) {
         setIsAuthenticated(true);
         setAuthError(null);
-        
-        // Handle post-login redirect
-        const returnTo = sessionStorage.getItem('returnTo');
-        if (returnTo) {
-          sessionStorage.removeItem('returnTo');
-          handleRedirect(returnTo);
-        }
+        console.log("[ProtectedRoute] User authenticated:", user.id);
+      } else if (error) {
+        throw error;
       }
     } catch (error) {
+      console.error("[ProtectedRoute] Auth error:", error);
       setIsAuthenticated(false);
       setAuthError(error instanceof Error ? error.message : 'Authentication failed');
       handleRedirect('/login');
@@ -77,7 +70,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
       setIsLoading(false);
       authCheckInProgress.current = false;
     }
-  }, [user, getToken, handleRedirect]);
+  }, [user, error, getToken, handleRedirect]);
 
   useEffect(() => {
     unmountedRef.current = false;

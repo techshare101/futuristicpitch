@@ -71,18 +71,17 @@ const validateToken = (token: string | null): TokenValidationResult => {
   }
 };
 
-// Update token handling functions
 const setToken = (token: string) => {
   if (!token) return;
   const tokenWithPrefix = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
   localStorage.setItem(TOKEN_KEY, tokenWithPrefix);
-  console.log("[useUser] Token stored with prefix:", tokenWithPrefix.startsWith('Bearer '));
+  console.log("[useUser] Token stored successfully");
 };
 
 const getToken = () => {
   const token = localStorage.getItem(TOKEN_KEY);
-  if (!token) return null;
-  return token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+  console.log("[useUser] Token retrieved:", token ? 'exists' : 'not found');
+  return token;
 };
 
 const retryRequest = async <T>(
@@ -187,7 +186,7 @@ export function useUser() {
         return { 
           ok: true, 
           data,
-          returnTo: returnTo || '/projects' // Default to projects page
+          returnTo: returnTo || '/projects'
         };
       } catch (error) {
         console.error("[useUser] Login error:", error);
