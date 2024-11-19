@@ -10,44 +10,40 @@ export function Navigation() {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [isNavigating, setIsNavigating] = useState(false);
-  const navigationTimeoutRef = useRef<NodeJS.Timeout>();
-  const unmountedRef = useRef(false);
 
-  // Handle token validation on mount and path changes
-  useEffect(() => {
-    const validateCurrentPath = () => {
+  const handleNavigation = useCallback(async (path: string) => {
+    if (isNavigating) return;
+    
+    try {
+      setIsNavigating(true);
       const token = getToken();
-      const currentPath = window.location.pathname;
       
-      if (!token && currentPath !== '/login' && currentPath !== '/') {
-        console.log("[Navigation] No valid token found on mount, redirecting to login");
+      if (!token && path !== '/login' && path !== '/') {
+        sessionStorage.setItem('returnTo', path);
         setLocation('/login');
+        return;
       }
-    };
-
-    validateCurrentPath();
-
-    return () => {
-      unmountedRef.current = true;
-      if (navigationTimeoutRef.current) {
-        clearTimeout(navigationTimeoutRef.current);
-      }
-    };
-  }, [getToken, setLocation]);
+      
+      setLocation(path);
+    } catch (error) {
+      console.error("[Navigation] Navigation error:", error);
+      toast({
+        title: "Error",
+        description: "Navigation failed. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsNavigating(false);
+    }
+  }, [getToken, setLocation, toast, isNavigating]);
 
   const handleLogout = async () => {
     if (isNavigating) return;
     
     try {
       setIsNavigating(true);
-      const token = getToken();
-      if (!token) {
-        console.log("[Navigation] No token found during logout");
-        setLocation('/login');
-        return;
-      }
-
       const result = await logout();
+      
       if (result.ok) {
         toast({
           title: "Logged out",
@@ -61,62 +57,13 @@ export function Navigation() {
       console.error("[Navigation] Logout error:", error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to logout. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to logout",
         variant: "destructive",
       });
     } finally {
-      if (!unmountedRef.current) {
-        setIsNavigating(false);
-      }
+      setIsNavigating(false);
     }
   };
-
-  const handleNavigation = useCallback(async (path: string) => {
-    if (isNavigating) return;
-
-    try {
-      setIsNavigating(true);
-      const token = getToken();
-      
-      // Check if navigation requires authentication
-      if (!token && path !== '/login' && path !== '/') {
-        console.log("[Navigation] No valid token found, redirecting to login");
-        toast({
-          title: "Authentication Required",
-          description: "Please log in to access this page",
-          variant: "destructive",
-        });
-        
-        // Store return path before redirecting
-        sessionStorage.setItem('returnTo', path);
-        setLocation('/login');
-        return;
-      }
-
-      // Debounce navigation to prevent rapid redirects
-      if (navigationTimeoutRef.current) {
-        clearTimeout(navigationTimeoutRef.current);
-      }
-
-      navigationTimeoutRef.current = setTimeout(() => {
-        if (!unmountedRef.current) {
-          setLocation(path);
-        }
-      }, 50);
-
-    } catch (error) {
-      console.error("[Navigation] Navigation error:", error);
-      toast({
-        title: "Error",
-        description: "Navigation failed. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      if (!unmountedRef.current) {
-        setIsNavigating(false);
-      }
-    }
-  }, [getToken, setLocation, toast, isNavigating]);
 
   return (
     <nav className="fixed top-4 left-4 z-50 flex gap-2 items-center">

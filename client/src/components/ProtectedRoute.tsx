@@ -23,10 +23,19 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { toast } = useToast();
   const { user, error, getToken } = useUser();
 
-  // Updated handleRedirect with simplified logic
+  // Updated handleRedirect with improved logic
   const handleRedirect = useCallback((path: string) => {
     if (redirectInProgress.current || unmountedRef.current) return;
     redirectInProgress.current = true;
+    
+    // Store current path before redirect
+    if (path === '/login') {
+      const currentPath = window.location.pathname;
+      if (currentPath !== '/login' && currentPath !== '/') {
+        sessionStorage.setItem('returnTo', currentPath);
+      }
+    }
+    
     setLocation(path);
     setTimeout(() => {
       redirectInProgress.current = false;

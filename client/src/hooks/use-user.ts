@@ -76,6 +76,7 @@ const setToken = (token: string) => {
   if (!token) return;
   const tokenWithPrefix = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
   localStorage.setItem(TOKEN_KEY, tokenWithPrefix);
+  console.log("[useUser] Token stored successfully");
 };
 
 // Updated token retrieval function
@@ -215,7 +216,6 @@ export function useUser() {
         return { ok: true };
       } catch (error) {
         console.error("[useUser] Logout error:", error);
-        // Clear token even if logout fails
         clearToken();
         await mutate(undefined, { revalidate: false });
         return {
