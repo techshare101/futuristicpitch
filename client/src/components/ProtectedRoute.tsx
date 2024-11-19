@@ -23,7 +23,6 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { toast } = useToast();
   const { user, error, getToken } = useUser();
 
-  // Updated handleRedirect with improved logic
   const handleRedirect = useCallback((path: string) => {
     if (redirectInProgress.current || unmountedRef.current) return;
     redirectInProgress.current = true;
@@ -44,23 +43,29 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   const checkAuthentication = useCallback(async () => {
     if (authCheckInProgress.current || unmountedRef.current) return;
-
+    
     authCheckInProgress.current = true;
     setIsLoading(true);
     
     try {
       const token = getToken();
-      console.log("[ProtectedRoute] Checking authentication");
+      console.log("[ProtectedRoute] Token exists:", !!token);
       
       if (!token) {
         throw new Error("Authentication required");
+      }
+
+      // Add proper token validation
+      const isValidToken = token.startsWith('Bearer ') && token.split(' ')[1].length > 0;
+      if (!isValidToken) {
+        throw new Error("Invalid token format");
       }
 
       if (user) {
         console.log("[ProtectedRoute] User authenticated:", user.id);
         setIsAuthenticated(true);
         setAuthError(null);
-
+        
         // Handle post-login redirect
         const returnTo = sessionStorage.getItem('returnTo');
         if (returnTo && window.location.pathname === '/login') {

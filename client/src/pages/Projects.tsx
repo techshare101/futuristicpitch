@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { Plus, Pencil, Trash2, AlertCircle, Loader2 } from "lucide-react";
 import useSWR from "swr";
+import { useLocation } from "wouter";
+import { useToast } from "@/hooks/use-toast";
+import { useUser } from "@/hooks/use-user";
 import {
   Dialog,
   DialogContent,
@@ -28,13 +31,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
 import {
   Alert,
   AlertDescription,
   AlertTitle,
 } from "@/components/ui/alert";
-import { useLocation } from "wouter";
 import { ErrorBoundary } from "@/components/error-boundary";
 
 type Project = {
@@ -59,23 +60,26 @@ type ApiError = {
 const TOKEN_KEY = 'auth_token'; // Assuming this is your token storage key
 
 async function fetchWithAuth(url: string, options: RequestInit = {}) {
-  const token = localStorage.getItem(TOKEN_KEY);
+  const { getToken } = useUser();
+  const token = getToken();
+  console.log("[Projects] Token exists for fetch:", !!token);
+  
   if (!token) {
-    throw new Error('No authentication token found');
+    throw new Error('Authentication required');
   }
   
   const response = await fetch(url, {
     ...options,
     headers: {
       ...options.headers,
-      'Authorization': token.startsWith('Bearer ') ? token : `Bearer ${token}`,
+      'Authorization': token,
       'Content-Type': 'application/json',
     },
   });
 
   if (!response.ok) {
     const data = await response.json();
-    throw new Error(data.message || 'Request failed');
+    throw new Error(data.error || data.message || 'Request failed');
   }
 
   return response.json();
