@@ -15,16 +15,26 @@ if (!process.env.DATABASE_URL) {
   throw new Error('DATABASE_URL environment variable must be set');
 }
 
-// Create a PostgreSQL connection pool with optimized configuration and connection timeout
+const getSslConfig = () => {
+  if (process.env.NODE_ENV !== 'production') {
+    return false;
+  }
+  return {
+    rejectUnauthorized: process.env.POSTGRES_SSL_REJECT_UNAUTHORIZED === 'false' ? false : true,
+    ca: process.env.POSTGRES_SSL_CA,
+    cert: process.env.POSTGRES_SSL_CERT,
+    key: process.env.POSTGRES_SSL_KEY,
+  };
+};
+
+// Create a PostgreSQL connection pool with improved configuration
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? {
-    rejectUnauthorized: false
-  } : false,
-  max: 20,
+  ssl: getSslConfig(),
+  max: process.env.NODE_ENV === 'production' ? 20 : 10,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000, // Increased timeout for better reliability
-  allowExitOnIdle: true // Allow clean shutdown
+  connectionTimeoutMillis: 10000,
+  application_name: 'product-pitch-generator',
 });
 
 // Maximum number of connection retries
@@ -109,24 +119,6 @@ pool.on('error', (err) => {
     
     registerRoutes(app);
     const server = createServer(app);
-
-    // Enhanced error handling middleware
-    app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-      const status = err.status || err.statusCode || 500;
-      const message = err.message || "Internal Server Error";
-      
-      console.error('Server error:', {
-        status,
-        message,
-        stack: err.stack,
-        timestamp: new Date().toISOString()
-      });
-      
-      res.status(status).json({ 
-        message,
-        error: app.get('env') === 'development' ? err.stack : undefined
-      });
-    });
 
     if (app.get("env") === "development") {
       await setupVite(app, server);

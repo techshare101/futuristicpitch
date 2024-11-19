@@ -57,8 +57,22 @@ type ApiError = {
   message: string;
 };
 
+async function fetchWithRetry(url: string, options = {}, retries = 3) {
+  try {
+    const response = await fetch(url, options);
+    if (!response.ok) throw new Error('Request failed');
+    return response.json();
+  } catch (error) {
+    if (retries > 0) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      return fetchWithRetry(url, options, retries - 1);
+    }
+    throw error;
+  }
+}
+
 async function fetchProjects(url: string, options: RequestInit = {}) {
-  const response = await fetch(url, {
+  const response = await fetchWithRetry(url, {
     ...options,
     headers: {
       ...options.headers,
@@ -66,12 +80,7 @@ async function fetchProjects(url: string, options: RequestInit = {}) {
     },
   });
 
-  if (!response.ok) {
-    const data = await response.json();
-    throw new Error(data.error || data.message || 'Request failed');
-  }
-
-  return response.json();
+  return response;
 }
 
 export default function Projects() {

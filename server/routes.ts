@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createUser, verifyEmail, generateToken } from "./auth";
 import { signUpSchema, verifyEmailSchema, projectSchema } from "../db/schema";
 import { db } from "../db";
@@ -343,5 +343,15 @@ export function registerRoutes(app: Express) {
       logError("healthCheck", error);
       res.status(503).json({ status: "error", error: "Service unavailable" });
     }
+  });
+
+  // Global error handling middleware
+  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+    console.error('[Routes] Error:', err);
+    res.status(500).json({
+      error: process.env.NODE_ENV === 'production' 
+        ? 'Internal server error' 
+        : err.message
+    });
   });
 }
