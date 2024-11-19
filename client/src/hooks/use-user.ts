@@ -26,7 +26,8 @@ const validateToken = (token: string | null): TokenValidationResult => {
   }
 
   try {
-    const tokenPart = token.startsWith('Bearer ') ? token.split(' ')[1] : token;
+    // Parse token and validate structure
+    const tokenPart = token.split(' ')[1] || token;
     
     // Validate JWT structure
     const parts = tokenPart.split('.');
@@ -39,18 +40,8 @@ const validateToken = (token: string | null): TokenValidationResult => {
     const isValidParts = parts.every(part => {
       try {
         const buffer = Buffer.from(part.replace(/-/g, '+').replace(/_/g, '/'), 'base64');
-        if (buffer.length === 0) return false;
-        
-        // Additional validation for expiry
-        if (part === parts[1]) {
-          const payload = JSON.parse(buffer.toString());
-          if (payload.exp && payload.exp * 1000 < Date.now()) {
-            throw new Error("Token expired");
-          }
-        }
-        return true;
-      } catch (error) {
-        console.error("[useUser] Token part validation error:", error);
+        return buffer.length > 0;
+      } catch {
         return false;
       }
     });
@@ -64,11 +55,31 @@ const validateToken = (token: string | null): TokenValidationResult => {
     return { isValid: true };
   } catch (error) {
     console.error("[useUser] Token validation error:", error);
-    if (error instanceof Error && error.message === "Token expired") {
-      return { isValid: false, error: "Token expired" };
-    }
     return { isValid: false, error: "Token validation failed" };
   }
+};
+
+const fetchWithToken = async (url: string) => {
+  const token = getToken();
+  if (!token) {
+    throw new Error("No token available");
+  }
+
+  const response = await fetch(url, {
+    headers: {
+      Authorization: token,
+    },
+  });
+
+  if (!response.ok) {
+    const error = new Error("An error occurred while fetching the data.") as AuthError;
+    error.status = response.status;
+    const data = await response.json();
+    error.info = data;
+    throw error;
+  }
+
+  return response.json();
 };
 
 const setToken = (token: string) => {
@@ -117,30 +128,33 @@ export function useUser() {
     }
   }, []);
 
-  const { data: user, error, mutate } = useSWR<User>("/api/auth/status", {
-    revalidateOnFocus: false,
-    refreshInterval: REFRESH_INTERVAL,
-    shouldRetryOnError: false,
-    onError: async (err: AuthError) => {
-      console.error("[useUser] Auth error:", err);
-      
-      if (err.status === 401 || err.status === 403) {
-        const token = getToken();
-        if (token) {
-          console.log("[useUser] Token exists but unauthorized, validating");
-          const validationResult = validateToken(token);
-          
-          if (!validationResult.isValid || err.code === 'TOKEN_EXPIRED') {
-            console.log("[useUser] Token invalid or expired, clearing");
-            clearToken();
-            await mutate(undefined, { revalidate: false });
+  const { data: user, error, mutate } = useSWR<User>(
+    "/api/auth/status",
+    fetchWithToken,
+    {
+      revalidateOnFocus: false,
+      refreshInterval: REFRESH_INTERVAL,
+      shouldRetryOnError: false,
+      onError: async (err: AuthError) => {
+        console.error("[useUser] Auth error:", err);
+        
+        if (err.status === 401 || err.status === 403) {
+          const token = getToken();
+          if (token) {
+            console.log("[useUser] Token exists but unauthorized, validating");
+            const validationResult = validateToken(token);
+            
+            if (!validationResult.isValid) {
+              console.log("[useUser] Token invalid, clearing");
+              clearToken();
+              await mutate(undefined, { revalidate: false });
+            }
           }
         }
       }
     }
-  });
+  );
 
-  // Cleanup on unmount
   useEffect(() => {
     unmountedRef.current = false;
     return () => {
@@ -167,12 +181,13 @@ export function useUser() {
           })
         );
 
-        const data = await response.json();
-        
         if (!response.ok) {
+          const data = await response.json();
           throw new Error(data.error || "Login failed");
         }
 
+        const data = await response.json();
+        
         if (!data.token) {
           throw new Error("No token received from server");
         }
@@ -181,8 +196,11 @@ export function useUser() {
         setToken(data.token);
         await mutate();
         
-        // Get returnTo path from sessionStorage
         const returnTo = sessionStorage.getItem('returnTo');
+        if (returnTo) {
+          sessionStorage.removeItem('returnTo');
+        }
+        
         return { 
           ok: true, 
           data,
