@@ -19,7 +19,6 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const redirectInProgress = useRef(false);
   const authCheckInProgress = useRef(false);
   const unmountedRef = useRef(false);
-  const authTimeoutRef = useRef<NodeJS.Timeout>();
   const { toast } = useToast();
   const { user, error, getToken } = useUser();
 
@@ -49,93 +48,48 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     
     try {
       const token = getToken();
-      console.log("[ProtectedRoute] Token exists:", !!token);
-      
       if (!token) {
         throw new Error("Authentication required");
       }
 
-      // Add proper token validation
+      // Validate token format
       const isValidToken = token.startsWith('Bearer ') && token.split(' ')[1].length > 0;
       if (!isValidToken) {
         throw new Error("Invalid token format");
       }
 
       if (user) {
-        console.log("[ProtectedRoute] User authenticated:", user.id);
         setIsAuthenticated(true);
         setAuthError(null);
         
         // Handle post-login redirect
         const returnTo = sessionStorage.getItem('returnTo');
-        if (returnTo && window.location.pathname === '/login') {
+        if (returnTo) {
           sessionStorage.removeItem('returnTo');
           handleRedirect(returnTo);
         }
-      } else if (error) {
-        throw error;
       }
-    } catch (err) {
-      if (unmountedRef.current) return;
-
-      const errorMessage = err instanceof Error ? err.message : "Authentication required";
-      console.error("[ProtectedRoute] Authentication failed:", errorMessage);
-      
+    } catch (error) {
       setIsAuthenticated(false);
-      setAuthError(errorMessage);
-      
-      toast({
-        title: "Authentication Required",
-        description: errorMessage,
-        variant: "destructive",
-      });
-
-      const currentPath = window.location.pathname;
-      if (currentPath !== '/login' && currentPath !== '/') {
-        sessionStorage.setItem('returnTo', currentPath);
-        handleRedirect('/login');
-      }
+      setAuthError(error instanceof Error ? error.message : 'Authentication failed');
+      handleRedirect('/login');
     } finally {
-      if (!unmountedRef.current) {
-        setIsLoading(false);
-        authCheckInProgress.current = false;
-      }
+      setIsLoading(false);
+      authCheckInProgress.current = false;
     }
-  }, [user, error, getToken, handleRedirect, toast]);
+  }, [user, getToken, handleRedirect]);
 
   useEffect(() => {
     unmountedRef.current = false;
     console.log("[ProtectedRoute] Component mounted");
-
-    const performInitialCheck = async () => {
-      try {
-        await checkAuthentication();
-      } catch (error) {
-        if (!unmountedRef.current) {
-          console.error("[ProtectedRoute] Initial auth check failed:", error);
-          authTimeoutRef.current = setTimeout(performInitialCheck, 2000);
-        }
-      }
-    };
-
-    performInitialCheck();
+    
+    checkAuthentication();
 
     return () => {
       unmountedRef.current = true;
-      redirectInProgress.current = false;
-      authCheckInProgress.current = false;
-      if (authTimeoutRef.current) {
-        clearTimeout(authTimeoutRef.current);
-      }
       console.log("[ProtectedRoute] Component cleanup completed");
     };
   }, [checkAuthentication]);
-
-  useEffect(() => {
-    if (!isLoading && !unmountedRef.current) {
-      checkAuthentication();
-    }
-  }, [user, error, checkAuthentication, isLoading]);
 
   if (isLoading) {
     return (

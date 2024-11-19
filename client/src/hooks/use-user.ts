@@ -75,14 +75,13 @@ const setToken = (token: string) => {
   if (!token) return;
   const tokenWithPrefix = token.startsWith('Bearer ') ? token : `Bearer ${token}`;
   localStorage.setItem(TOKEN_KEY, tokenWithPrefix);
-  console.log("[useUser] Token stored with prefix:", tokenWithPrefix.startsWith('Bearer '));
+  console.log("[useUser] Token stored successfully");
 };
 
 const getToken = () => {
   const token = localStorage.getItem(TOKEN_KEY);
-  console.log("[useUser] Retrieved token exists:", !!token);
-  if (!token) return null;
-  return token.startsWith('Bearer ') ? token : `Bearer ${token}`;
+  console.log("[useUser] Retrieved token:", token ? 'exists' : 'not found');
+  return token;
 };
 
 const retryRequest = async <T>(

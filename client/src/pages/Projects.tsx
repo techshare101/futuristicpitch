@@ -78,6 +78,9 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
   });
 
   if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error('Authentication required');
+    }
     const data = await response.json();
     throw new Error(data.error || data.message || 'Request failed');
   }
