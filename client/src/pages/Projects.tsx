@@ -42,6 +42,7 @@ type Project = {
   name: string;
   description?: string;
   status: 'draft' | 'published' | 'archived';
+  notes?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -96,6 +97,9 @@ export default function Projects() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [editingNotes, setEditingNotes] = useState<Record<string, boolean>>({});
+  const [savingNotes, setSavingNotes] = useState<Record<string, boolean>>({});
+  const [projectNotes, setProjectNotes] = useState<Record<string, string>>({});
   const { toast } = useToast();
 
   const initialFormData: ProjectFormData = {
@@ -121,6 +125,49 @@ export default function Projects() {
     }
     setFormError(null);
     return true;
+  };
+
+  const handleNotesChange = (projectId: string, value: string) => {
+    setProjectNotes({
+      ...projectNotes,
+      [projectId]: value
+    });
+  };
+
+  const handleSaveNotes = async (projectId: string) => {
+    try {
+      setSavingNotes(prev => ({ ...prev, [projectId]: true }));
+      const notes = projectNotes[projectId];
+
+      const response = await fetch(`/api/projects/${projectId}/notes`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ notes }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to save notes');
+      }
+
+      await mutate();
+      setEditingNotes(prev => ({ ...prev, [projectId]: false }));
+      
+      toast({
+        title: "Success",
+        description: "Notes saved successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to save notes",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingNotes(prev => ({ ...prev, [projectId]: false }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -391,6 +438,31 @@ export default function Projects() {
                         }`}>
                         {project.status}
                       </span>
+                    </div>
+                    <div className="mt-4">
+                      <Label htmlFor={`notes-${project.id}`} className="text-white mb-2">Notes</Label>
+                      <Textarea
+                        id={`notes-${project.id}`}
+                        value={projectNotes[project.id] ?? project.notes ?? ''}
+                        onChange={(e) => handleNotesChange(project.id, e.target.value)}
+                        placeholder="Add notes about this project..."
+                        className="bg-white/5 text-white border-white/20"
+                        disabled={savingNotes[project.id]}
+                      />
+                      <Button
+                        onClick={() => handleSaveNotes(project.id)}
+                        className="mt-2 bg-white/10 hover:bg-white/20 text-white"
+                        disabled={savingNotes[project.id]}
+                      >
+                        {savingNotes[project.id] ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          'Save Notes'
+                        )}
+                      </Button>
                     </div>
                   </CardContent>
                   <CardFooter className="flex justify-end space-x-2">

@@ -54,32 +54,29 @@ async function validateDatabaseConnection() {
 }
 
 export function registerRoutes(app: Express) {
-  // Health check endpoint with DB validation
-  app.get("/api/health", async (_req, res) => {
-    try {
-      const isDbConnected = await validateDatabaseConnection();
-      res.json({ 
-        status: isDbConnected ? "ok" : "degraded",
-        database: isDbConnected ? "connected" : "disconnected",
-        timestamp: new Date().toISOString()
-      });
-    } catch (error) {
-      logError("healthCheck", error);
-      res.status(503).json({ status: "error", error: "Service unavailable" });
-    }
+  // Auth endpoints - temporarily simplified
+  app.post("/api/auth/signup", async (req, res) => {
+    res.json({ token: "mock-token", message: "Signup successful" });
   });
 
-  // Projects CRUD endpoints - No authentication required
+  app.post("/api/auth/verify-email", async (req, res) => {
+    res.json({ message: "Email verified successfully" });
+  });
+
+  app.post("/api/auth/login", async (req, res) => {
+    console.log("[Routes] Login attempt");
+    res.json({ token: "mock-token", userId: "public" });
+  });
+
+  // Projects CRUD endpoints
   app.get("/api/projects", async (_req, res) => {
     try {
       console.log("[Routes] Fetching all projects");
       
-      // Validate database connection
       if (!await validateDatabaseConnection()) {
         throw new Error("Database connection is not available");
       }
       
-      // Ensure public user exists
       await ensurePublicUser();
       
       const allProjects = await db
@@ -92,7 +89,7 @@ export function registerRoutes(app: Express) {
     } catch (error) {
       logError("fetchProjects", error);
       res.status(500).json({ 
-        error: "Failed to fetch projects. Please try again.",
+        error: "Failed to fetch projects",
         details: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined
       });
     }
@@ -130,6 +127,47 @@ export function registerRoutes(app: Express) {
       
       res.status(500).json({ 
         error: "Failed to create project",
+        details: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined
+      });
+    }
+  });
+
+  // Add dedicated endpoint for updating project notes
+  app.put("/api/projects/:id/notes", async (req, res) => {
+    const { id } = req.params;
+    const { notes } = req.body;
+    
+    try {
+      console.log(`[Routes] Updating notes for project: ${id}`);
+      
+      if (!await validateDatabaseConnection()) {
+        throw new Error("Database connection is not available");
+      }
+      
+      const project = await db.query.projects.findFirst({
+        where: eq(projects.id, id),
+      });
+
+      if (!project) {
+        console.log(`[Routes] Project not found: ${id}`);
+        return res.status(404).json({ error: "Project not found" });
+      }
+
+      const updatedProject = await db
+        .update(projects)
+        .set({
+          notes,
+          updatedAt: new Date(),
+        })
+        .where(eq(projects.id, id))
+        .returning();
+
+      console.log(`[Routes] Project notes updated successfully: ${id}`);
+      res.json(updatedProject[0]);
+    } catch (error) {
+      logError("updateProjectNotes", error, { projectId: id, notes });
+      res.status(500).json({ 
+        error: "Failed to update project notes",
         details: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined
       });
     }
@@ -292,16 +330,18 @@ export function registerRoutes(app: Express) {
     }
   });
 
-  // Auth endpoints - temporarily simplified
-  app.post("/api/auth/signup", async (req, res) => {
-    res.json({ token: "mock-token", message: "Signup successful" });
-  });
-
-  app.post("/api/auth/verify-email", async (req, res) => {
-    res.json({ message: "Email verified successfully" });
-  });
-
-  app.post("/api/auth/login", async (req, res) => {
-    res.json({ token: "mock-token", userId: "public" });
+  // Health check endpoint with DB validation
+  app.get("/api/health", async (_req, res) => {
+    try {
+      const isDbConnected = await validateDatabaseConnection();
+      res.json({ 
+        status: isDbConnected ? "ok" : "degraded",
+        database: isDbConnected ? "connected" : "disconnected",
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      logError("healthCheck", error);
+      res.status(503).json({ status: "error", error: "Service unavailable" });
+    }
   });
 }
