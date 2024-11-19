@@ -18,13 +18,14 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const [authError, setAuthError] = useState<string | null>(null);
   const redirectInProgress = useRef(false);
   const authCheckInProgress = useRef(false);
-  const unmounted = useRef(false);
+  const unmountedRef = useRef(false);
+  const authTimeoutRef = useRef<NodeJS.Timeout>();
   const { toast } = useToast();
   const { user, error, getToken, refreshToken } = useUser();
 
-  // Handle redirect with improved cleanup
+  // Enhanced redirect handling with debounce
   const handleRedirect = useCallback((path: string) => {
-    if (redirectInProgress.current || unmounted.current) {
+    if (redirectInProgress.current || unmountedRef.current) {
       console.log("[ProtectedRoute] Redirect blocked - already in progress or unmounted");
       return;
     }
@@ -32,21 +33,30 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     redirectInProgress.current = true;
     console.log("[ProtectedRoute] Starting redirect to:", path);
 
-    // Perform the redirect
-    setLocation(path);
-
-    // Reset redirect flag after a short delay
-    setTimeout(() => {
-      if (!unmounted.current) {
-        redirectInProgress.current = false;
-        console.log("[ProtectedRoute] Redirect completed, flag reset");
+    // Store current path for post-login redirect
+    if (path === '/login') {
+      const currentPath = window.location.pathname;
+      if (currentPath !== '/login') {
+        sessionStorage.setItem('returnTo', currentPath);
       }
-    }, 500);
+    }
+
+    // Perform redirect with debounce
+    setTimeout(() => {
+      if (!unmountedRef.current) {
+        setLocation(path);
+        // Reset redirect flag after navigation
+        setTimeout(() => {
+          redirectInProgress.current = false;
+          console.log("[ProtectedRoute] Redirect completed, flag reset");
+        }, 100);
+      }
+    }, 50);
   }, [setLocation]);
 
-  // Authentication check with improved error handling
+  // Enhanced authentication check with proper error handling
   const checkAuthentication = useCallback(async () => {
-    if (authCheckInProgress.current || unmounted.current) {
+    if (authCheckInProgress.current || unmountedRef.current) {
       return;
     }
 
@@ -65,12 +75,21 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
         console.log("[ProtectedRoute] User authenticated:", user.id);
         setIsAuthenticated(true);
         setAuthError(null);
+        
+        // Refresh token if needed
         await refreshToken();
+
+        // Handle post-login redirect
+        const returnTo = sessionStorage.getItem('returnTo');
+        if (returnTo && window.location.pathname === '/login') {
+          sessionStorage.removeItem('returnTo');
+          handleRedirect(returnTo);
+        }
       } else if (error) {
         throw error;
       }
     } catch (err) {
-      if (unmounted.current) return;
+      if (unmountedRef.current) return;
 
       const errorMessage = err instanceof Error ? err.message : "Authentication required";
       console.error("[ProtectedRoute] Authentication failed:", errorMessage);
@@ -89,33 +108,50 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
         handleRedirect('/login');
       }
     } finally {
-      if (!unmounted.current) {
+      if (!unmountedRef.current) {
         setIsLoading(false);
         authCheckInProgress.current = false;
       }
     }
   }, [user, error, getToken, refreshToken, handleRedirect, toast]);
 
-  // Component lifecycle management
+  // Enhanced component lifecycle management
   useEffect(() => {
-    unmounted.current = false;
+    unmountedRef.current = false;
     console.log("[ProtectedRoute] Component mounted");
 
-    // Initial auth check
-    checkAuthentication();
+    // Initial auth check with retry mechanism
+    const performInitialCheck = async () => {
+      try {
+        await checkAuthentication();
+      } catch (error) {
+        if (!unmountedRef.current) {
+          console.error("[ProtectedRoute] Initial auth check failed:", error);
+          authTimeoutRef.current = setTimeout(performInitialCheck, 2000);
+        }
+      }
+    };
+
+    performInitialCheck();
 
     return () => {
-      unmounted.current = true;
+      unmountedRef.current = true;
       redirectInProgress.current = false;
       authCheckInProgress.current = false;
+      if (authTimeoutRef.current) {
+        clearTimeout(authTimeoutRef.current);
+      }
       console.log("[ProtectedRoute] Component cleanup completed");
     };
   }, [checkAuthentication]);
 
-  // Auth state changes handler
+  // Auth state changes handler with debounce
   useEffect(() => {
-    if (!isLoading && !unmounted.current) {
-      checkAuthentication();
+    if (!isLoading && !unmountedRef.current) {
+      const timeoutId = setTimeout(() => {
+        checkAuthentication();
+      }, 100);
+      return () => clearTimeout(timeoutId);
     }
   }, [user, error, checkAuthentication, isLoading]);
 

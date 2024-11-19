@@ -1,6 +1,6 @@
 import useSWR from "swr";
 import type { User } from "../../types";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 
 const TOKEN_KEY = 'auth_token';
 const MAX_RETRIES = 3;
@@ -17,7 +17,7 @@ interface AuthError extends Error {
   code?: string;
 }
 
-// Token validation with improved error handling
+// Enhanced token validation with improved error handling
 const validateToken = (token: string | null): TokenValidationResult => {
   console.log("[useUser] Starting token validation");
   
@@ -27,8 +27,8 @@ const validateToken = (token: string | null): TokenValidationResult => {
   }
 
   try {
-    // Check Bearer prefix
-    if (!token.startsWith('Bearer ')) {
+    // Validate token format
+    if (!token.includes('Bearer ')) {
       console.log("[useUser] Token missing Bearer prefix");
       return { isValid: false, error: "Invalid token format" };
     }
@@ -42,6 +42,21 @@ const validateToken = (token: string | null): TokenValidationResult => {
       return { isValid: false, error: "Invalid token format" };
     }
 
+    // Basic validation of each part
+    const isValidParts = parts.every(part => {
+      try {
+        return Buffer.from(part.replace(/-/g, '+').replace(/_/g, '/'), 'base64').length > 0;
+      } catch {
+        return false;
+      }
+    });
+
+    if (!isValidParts) {
+      console.log("[useUser] Invalid token parts");
+      return { isValid: false, error: "Invalid token format" };
+    }
+
+    console.log("[useUser] Token validation successful");
     return { isValid: true };
   } catch (error) {
     console.error("[useUser] Token validation error:", error);
@@ -51,32 +66,37 @@ const validateToken = (token: string | null): TokenValidationResult => {
 
 // Ensure consistent Bearer prefix handling
 const ensureBearerPrefix = (token: string): string => {
-  const cleanToken = token.replace(/^Bearer\s+/i, '');
+  const cleanToken = token.replace(/^Bearer\s+/i, '').trim();
   return `Bearer ${cleanToken}`;
 };
 
-// Request retry mechanism
+// Enhanced request retry mechanism
 const retryRequest = async <T>(
   fn: () => Promise<T>,
   maxRetries: number = MAX_RETRIES,
   delay: number = RETRY_DELAY
 ): Promise<T> => {
+  let lastError: Error | null = null;
+  
   for (let i = 0; i < maxRetries; i++) {
     try {
       return await fn();
     } catch (error) {
+      lastError = error as Error;
       console.log(`[useUser] Request attempt ${i + 1} failed:`, error);
-      if (i === maxRetries - 1) throw error;
+      if (i === maxRetries - 1) break;
       await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
     }
   }
-  throw new Error("Max retries exceeded");
+  throw lastError || new Error("Max retries exceeded");
 };
 
 export function useUser() {
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const refreshTimeoutRef = useRef<NodeJS.Timeout>();
+  const unmountedRef = useRef(false);
 
-  const { data, error, mutate } = useSWR<User>("/api/auth/status", {
+  const { data: user, error, mutate } = useSWR<User>("/api/auth/status", {
     revalidateOnFocus: false,
     refreshInterval: REFRESH_INTERVAL,
     shouldRetryOnError: false,
@@ -86,7 +106,7 @@ export function useUser() {
       if (err.status === 401 || err.status === 403) {
         const token = getToken();
         if (token) {
-          console.log("[useUser] Token exists but unauthorized");
+          console.log("[useUser] Token exists but unauthorized, validating");
           const validationResult = validateToken(token);
           
           if (!validationResult.isValid || err.code === 'TOKEN_EXPIRED') {
@@ -99,6 +119,7 @@ export function useUser() {
     }
   });
 
+  // Enhanced token storage with validation
   const setToken = useCallback((token: string) => {
     try {
       if (!token || typeof token !== 'string') {
@@ -121,14 +142,14 @@ export function useUser() {
     }
   }, []);
 
+  // Enhanced token retrieval with validation
   const getToken = useCallback((): string | null => {
     try {
       const token = localStorage.getItem(TOKEN_KEY);
-      console.log("[useUser] Retrieved token:", token ? "exists" : "not found");
+      console.log("[useUser] Retrieving token:", token ? "exists" : "not found");
       
       if (!token) return null;
 
-      // Ensure token has proper format
       const tokenWithPrefix = ensureBearerPrefix(token);
       const validationResult = validateToken(tokenWithPrefix);
       
@@ -149,11 +170,15 @@ export function useUser() {
   const clearToken = useCallback(() => {
     console.log("[useUser] Clearing auth token");
     localStorage.removeItem(TOKEN_KEY);
+    if (refreshTimeoutRef.current) {
+      clearTimeout(refreshTimeoutRef.current);
+    }
   }, []);
 
+  // Enhanced token refresh mechanism
   const refreshToken = useCallback(async () => {
-    if (isRefreshing) {
-      console.log("[useUser] Token refresh already in progress");
+    if (isRefreshing || unmountedRef.current) {
+      console.log("[useUser] Token refresh skipped - already in progress or unmounted");
       return;
     }
     
@@ -176,29 +201,51 @@ export function useUser() {
       );
 
       if (!response.ok) {
-        throw new Error("Token refresh failed");
+        throw new Error(`Token refresh failed: ${response.status}`);
       }
 
       const newToken = response.headers.get("X-New-Token");
-      if (newToken) {
-        console.log("[useUser] New token received");
-        setToken(newToken);
-        await mutate();
+      if (!newToken) {
+        throw new Error("No new token received");
       }
+
+      console.log("[useUser] New token received");
+      setToken(newToken);
+      await mutate();
+
+      // Schedule next refresh
+      const jwtData = JSON.parse(atob(newToken.split('.')[1]));
+      const expiresIn = (jwtData.exp * 1000) - Date.now() - 60000; // Refresh 1 minute before expiry
+      
+      refreshTimeoutRef.current = setTimeout(refreshToken, Math.max(0, expiresIn));
+      
     } catch (error) {
       console.error("[useUser] Token refresh failed:", error);
-      if (error instanceof Error && error.message.includes('unauthorized')) {
+      if (!unmountedRef.current) {
         clearToken();
         await mutate(undefined, { revalidate: false });
       }
     } finally {
-      setIsRefreshing(false);
+      if (!unmountedRef.current) {
+        setIsRefreshing(false);
+      }
     }
   }, [isRefreshing, getToken, setToken, mutate]);
 
+  // Cleanup on unmount
+  useEffect(() => {
+    unmountedRef.current = false;
+    return () => {
+      unmountedRef.current = true;
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current);
+      }
+    };
+  }, []);
+
   return {
-    user: data,
-    isLoading: !error && !data,
+    user,
+    isLoading: !error && !user,
     error,
     getToken,
     login: async (credentials: { email: string; password: string }) => {
