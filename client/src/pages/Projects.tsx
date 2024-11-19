@@ -60,9 +60,7 @@ type ApiError = {
 const TOKEN_KEY = 'auth_token'; // Assuming this is your token storage key
 
 async function fetchWithAuth(url: string, options: RequestInit = {}) {
-  const { getToken } = useUser();
-  const token = getToken();
-  console.log("[Projects] Token exists for fetch:", !!token);
+  const token = localStorage.getItem('auth_token');
   
   if (!token) {
     throw new Error('Authentication required');
@@ -79,6 +77,7 @@ async function fetchWithAuth(url: string, options: RequestInit = {}) {
 
   if (!response.ok) {
     if (response.status === 401) {
+      localStorage.removeItem('auth_token');
       throw new Error('Authentication required');
     }
     const data = await response.json();

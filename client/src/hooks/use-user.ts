@@ -109,6 +109,14 @@ export function useUser() {
   const refreshTimeoutRef = useRef<NodeJS.Timeout>();
   const unmountedRef = useRef(false);
 
+  const clearToken = useCallback(() => {
+    console.log("[useUser] Clearing auth token");
+    localStorage.removeItem(TOKEN_KEY);
+    if (refreshTimeoutRef.current) {
+      clearTimeout(refreshTimeoutRef.current);
+    }
+  }, []);
+
   const { data: user, error, mutate } = useSWR<User>("/api/auth/status", {
     revalidateOnFocus: false,
     refreshInterval: REFRESH_INTERVAL,
@@ -131,14 +139,6 @@ export function useUser() {
       }
     }
   });
-
-  const clearToken = useCallback(() => {
-    console.log("[useUser] Clearing auth token");
-    localStorage.removeItem(TOKEN_KEY);
-    if (refreshTimeoutRef.current) {
-      clearTimeout(refreshTimeoutRef.current);
-    }
-  }, []);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -180,7 +180,14 @@ export function useUser() {
         console.log("[useUser] Login successful");
         setToken(data.token);
         await mutate();
-        return { ok: true, data };
+        
+        // Get returnTo path from sessionStorage
+        const returnTo = sessionStorage.getItem('returnTo');
+        return { 
+          ok: true, 
+          data,
+          returnTo: returnTo || '/getting-started' // Default to getting-started
+        };
       } catch (error) {
         console.error("[useUser] Login error:", error);
         clearToken();

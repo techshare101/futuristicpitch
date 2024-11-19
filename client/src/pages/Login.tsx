@@ -11,6 +11,7 @@ import { Card } from "@/components/ui/card";
 import { Link, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
+import { useUser } from "@/hooks/use-user";
 
 const formSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -21,6 +22,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const { login } = useUser();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -33,19 +35,26 @@ export default function Login() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
       setLoading(true);
+      const result = await login(values);
       
-      // Here you would typically handle user login
-      // For now, just show a success message
-      toast({
-        title: "Success!",
-        description: "You have been logged in successfully.",
-      });
-      
-      setLocation("/generator");
+      if (result.ok) {
+        toast({
+          title: "Success!",
+          description: "You have been logged in successfully.",
+        });
+        
+        if (result.returnTo) {
+          setLocation(result.returnTo);
+        } else {
+          setLocation("/projects");
+        }
+      } else {
+        throw new Error(result.error);
+      }
     } catch (error) {
       toast({
         title: "Error",
-        description: (error as Error).message,
+        description: error instanceof Error ? error.message : "Login failed",
         variant: "destructive",
       });
     } finally {
@@ -115,7 +124,7 @@ export default function Login() {
                   disabled={loading}
                   className="w-full bg-gradient-to-r from-[#ff00ff] via-[#00ffff] to-[#ff00ff] hover:from-[#ff33ff] hover:via-[#33ffff] hover:to-[#ff33ff] transition-all duration-300 animate-gradient"
                 >
-                  {loading ? "Processing..." : "Log In"}
+                  {loading ? "Logging in..." : "Log In"}
                 </Button>
               </form>
             </Form>
