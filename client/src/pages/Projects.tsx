@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Pencil, Trash2, AlertCircle, Loader2, ArrowLeft } from "lucide-react";
+import { Plus, Pencil, Trash2, AlertCircle, Loader2, ArrowLeft, SaveAll } from "lucide-react";
 import useSWR from "swr";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -262,100 +262,109 @@ export default function Projects() {
           </div>
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-3xl font-bold text-white">Projects</h1>
-            <Dialog open={isDialogOpen} onOpenChange={(open) => {
-              setIsDialogOpen(open);
-              if (!open) {
-                setSelectedProject(null);
-                setFormData(initialFormData);
-                setFormError(null);
-              }
-            }}>
-              <DialogTrigger asChild>
-                <Button className="bg-white/10 hover:bg-white/20 text-white border border-white/10">
-                  <Plus className="mr-2 h-4 w-4" />
-                  New Project
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="backdrop-blur-xl bg-slate-900/90 border-white/10">
-                <DialogHeader>
-                  <DialogTitle className="text-white">
-                    {selectedProject ? 'Edit Project' : 'Create New Project'}
-                  </DialogTitle>
-                  <DialogDescription className="text-white/70">
-                    Fill out the details below to {selectedProject ? 'update' : 'create'} your project.
-                  </DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name" className="text-white">Name</Label>
-                    <Input
-                      id="name"
-                      value={formData.name}
-                      onChange={(e) =>
-                        setFormData({ ...formData, name: e.target.value })
-                      }
-                      required
-                      disabled={isSubmitting}
-                      className="bg-white/10 border-white/20 text-white"
-                      placeholder="Enter project name"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="description" className="text-white">Description</Label>
-                    <Textarea
-                      id="description"
-                      value={formData.description}
-                      onChange={(e) =>
-                        setFormData({ ...formData, description: e.target.value })
-                      }
-                      disabled={isSubmitting}
-                      className="bg-white/10 border-white/20 text-white"
-                      placeholder="Enter project description"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="status" className="text-white">Status</Label>
-                    <Select
-                      value={formData.status}
-                      onValueChange={(value: 'draft' | 'published' | 'archived') =>
-                        setFormData({ ...formData, status: value })
-                      }
-                      disabled={isSubmitting}
-                    >
-                      <SelectTrigger className="bg-white/10 border-white/20 text-white">
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-slate-900 border-white/10">
-                        <SelectItem value="draft" className="text-white">Draft</SelectItem>
-                        <SelectItem value="published" className="text-white">Published</SelectItem>
-                        <SelectItem value="archived" className="text-white">Archived</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {formError && (
-                    <Alert variant="destructive" className="mt-4">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertTitle>Error</AlertTitle>
-                      <AlertDescription>{formError}</AlertDescription>
-                    </Alert>
-                  )}
-                  <Button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="w-full bg-white/10 hover:bg-white/20 text-white"
-                  >
-                    {isSubmitting ? (
-                      <div className="flex items-center justify-center">
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        {selectedProject ? 'Updating...' : 'Creating...'}
-                      </div>
-                    ) : (
-                      selectedProject ? 'Update Project' : 'Create Project'
-                    )}
+            <div className="flex gap-2">
+              <Button
+                onClick={() => setLocation('/project-backup')}
+                className="bg-white/10 hover:bg-white/20 text-white border border-white/10"
+              >
+                <SaveAll className="mr-2 h-4 w-4" />
+                Backup/Export
+              </Button>
+              <Dialog open={isDialogOpen} onOpenChange={(open) => {
+                setIsDialogOpen(open);
+                if (!open) {
+                  setSelectedProject(null);
+                  setFormData(initialFormData);
+                  setFormError(null);
+                }
+              }}>
+                <DialogTrigger asChild>
+                  <Button className="bg-white/10 hover:bg-white/20 text-white border border-white/10">
+                    <Plus className="mr-2 h-4 w-4" />
+                    New Project
                   </Button>
-                </form>
-              </DialogContent>
-            </Dialog>
+                </DialogTrigger>
+                <DialogContent className="backdrop-blur-xl bg-slate-900/90 border-white/10">
+                  <DialogHeader>
+                    <DialogTitle className="text-white">
+                      {selectedProject ? 'Edit Project' : 'Create New Project'}
+                    </DialogTitle>
+                    <DialogDescription className="text-white/70">
+                      Fill out the details below to {selectedProject ? 'update' : 'create'} your project.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="name" className="text-white">Name</Label>
+                      <Input
+                        id="name"
+                        value={formData.name}
+                        onChange={(e) =>
+                          setFormData({ ...formData, name: e.target.value })
+                        }
+                        required
+                        disabled={isSubmitting}
+                        className="bg-white/10 border-white/20 text-white"
+                        placeholder="Enter project name"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="description" className="text-white">Description</Label>
+                      <Textarea
+                        id="description"
+                        value={formData.description}
+                        onChange={(e) =>
+                          setFormData({ ...formData, description: e.target.value })
+                        }
+                        disabled={isSubmitting}
+                        className="bg-white/10 border-white/20 text-white"
+                        placeholder="Enter project description"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="status" className="text-white">Status</Label>
+                      <Select
+                        value={formData.status}
+                        onValueChange={(value: 'draft' | 'published' | 'archived') =>
+                          setFormData({ ...formData, status: value })
+                        }
+                        disabled={isSubmitting}
+                      >
+                        <SelectTrigger className="bg-white/10 border-white/20 text-white">
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-slate-900 border-white/10">
+                          <SelectItem value="draft" className="text-white">Draft</SelectItem>
+                          <SelectItem value="published" className="text-white">Published</SelectItem>
+                          <SelectItem value="archived" className="text-white">Archived</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {formError && (
+                      <Alert variant="destructive" className="mt-4">
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertTitle>Error</AlertTitle>
+                        <AlertDescription>{formError}</AlertDescription>
+                      </Alert>
+                    )}
+                    <Button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="w-full bg-white/10 hover:bg-white/20 text-white"
+                    >
+                      {isSubmitting ? (
+                        <div className="flex items-center justify-center">
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          {selectedProject ? 'Updating...' : 'Creating...'}
+                        </div>
+                      ) : (
+                        selectedProject ? 'Update Project' : 'Create Project'
+                      )}
+                    </Button>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
           {projects.length === 0 ? (
             <div className="text-center py-12">

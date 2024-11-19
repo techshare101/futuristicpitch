@@ -8,6 +8,17 @@ import { v4 as uuidv4 } from "uuid";
 import { ZodError } from "zod";
 import { desc } from "drizzle-orm";
 
+// Enhanced error logging function
+function logError(context: string, error: unknown, additionalInfo: Record<string, any> = {}) {
+  const errorObj = error instanceof Error ? error : new Error(String(error));
+  console.error(`[Routes] Error in ${context}:`, {
+    message: errorObj.message,
+    stack: errorObj.stack,
+    ...additionalInfo,
+    timestamp: new Date().toISOString()
+  });
+}
+
 async function ensurePublicUser() {
   try {
     const publicUser = await db.query.users.findFirst({
@@ -21,17 +32,41 @@ async function ensurePublicUser() {
         hashedPassword: 'none',
         emailVerified: true
       });
+      console.log("[Routes] Public user created successfully");
     }
   } catch (error) {
-    console.error("[Routes] Failed to ensure public user:", error);
+    logError("ensurePublicUser", error);
     throw new Error("Failed to setup public user");
   }
 }
 
+async function validateDatabaseConnection() {
+  try {
+    await db.query.users.findFirst().catch(error => {
+      logError("validateDatabaseConnection", error);
+      throw new Error("Database connection failed");
+    });
+    return true;
+  } catch (error) {
+    logError("validateDatabaseConnection", error);
+    return false;
+  }
+}
+
 export function registerRoutes(app: Express) {
-  // Health check endpoint
-  app.get("/api/health", (_req, res) => {
-    res.json({ status: "ok" });
+  // Health check endpoint with DB validation
+  app.get("/api/health", async (_req, res) => {
+    try {
+      const isDbConnected = await validateDatabaseConnection();
+      res.json({ 
+        status: isDbConnected ? "ok" : "degraded",
+        database: isDbConnected ? "connected" : "disconnected",
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      logError("healthCheck", error);
+      res.status(503).json({ status: "error", error: "Service unavailable" });
+    }
   });
 
   // Projects CRUD endpoints - No authentication required
@@ -39,17 +74,13 @@ export function registerRoutes(app: Express) {
     try {
       console.log("[Routes] Fetching all projects");
       
-      // Check database connection first
-      await db.query.users.findFirst().catch(error => {
-        console.error("[Routes] Database connection error:", error);
-        throw new Error("Database connection failed");
-      });
+      // Validate database connection
+      if (!await validateDatabaseConnection()) {
+        throw new Error("Database connection is not available");
+      }
       
-      // Ensure public user exists with better error handling
-      await ensurePublicUser().catch(error => {
-        console.error("[Routes] Failed to ensure public user:", error);
-        throw new Error("Failed to setup public user");
-      });
+      // Ensure public user exists
+      await ensurePublicUser();
       
       const allProjects = await db
         .select()
@@ -59,7 +90,7 @@ export function registerRoutes(app: Express) {
       console.log(`[Routes] Successfully fetched ${allProjects.length} projects`);
       res.json(allProjects);
     } catch (error) {
-      console.error("[Routes] Error fetching projects:", error);
+      logError("fetchProjects", error);
       res.status(500).json({ 
         error: "Failed to fetch projects. Please try again.",
         details: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined
@@ -71,7 +102,10 @@ export function registerRoutes(app: Express) {
     try {
       console.log("[Routes] Creating new project");
       
-      // Ensure public user exists
+      if (!await validateDatabaseConnection()) {
+        throw new Error("Database connection is not available");
+      }
+      
       await ensurePublicUser();
       
       const projectData = projectSchema.parse(req.body);
@@ -85,13 +119,15 @@ export function registerRoutes(app: Express) {
       console.log("[Routes] Project created successfully:", newProject[0].id);
       res.json(newProject[0]);
     } catch (error) {
-      console.error("[Routes] Error creating project:", error);
+      logError("createProject", error, { requestBody: req.body });
+      
       if (error instanceof ZodError) {
         return res.status(400).json({ 
           error: "Invalid project data",
           details: error.errors 
         });
       }
+      
       res.status(500).json({ 
         error: "Failed to create project",
         details: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined
@@ -103,6 +139,10 @@ export function registerRoutes(app: Express) {
     const { id } = req.params;
     try {
       console.log(`[Routes] Updating project: ${id}`);
+      
+      if (!await validateDatabaseConnection()) {
+        throw new Error("Database connection is not available");
+      }
       
       const projectData = projectSchema.parse(req.body);
       
@@ -120,7 +160,7 @@ export function registerRoutes(app: Express) {
         .set({
           ...projectData,
           updatedAt: new Date(),
-          userId: 'public' // Ensure public user
+          userId: 'public'
         })
         .where(eq(projects.id, id))
         .returning();
@@ -128,13 +168,15 @@ export function registerRoutes(app: Express) {
       console.log(`[Routes] Project updated successfully: ${id}`);
       res.json(updatedProject[0]);
     } catch (error) {
-      console.error(`[Routes] Error updating project ${id}:`, error);
+      logError("updateProject", error, { projectId: id, requestBody: req.body });
+      
       if (error instanceof ZodError) {
         return res.status(400).json({ 
           error: "Invalid project data",
           details: error.errors 
         });
       }
+      
       res.status(500).json({ 
         error: "Failed to update project",
         details: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined
@@ -146,6 +188,10 @@ export function registerRoutes(app: Express) {
     const { id } = req.params;
     try {
       console.log(`[Routes] Deleting project: ${id}`);
+      
+      if (!await validateDatabaseConnection()) {
+        throw new Error("Database connection is not available");
+      }
       
       const project = await db.query.projects.findFirst({
         where: eq(projects.id, id),
@@ -160,9 +206,87 @@ export function registerRoutes(app: Express) {
       console.log(`[Routes] Project deleted successfully: ${id}`);
       res.json({ message: "Project deleted successfully" });
     } catch (error) {
-      console.error(`[Routes] Error deleting project ${id}:`, error);
+      logError("deleteProject", error, { projectId: id });
       res.status(500).json({ 
         error: "Failed to delete project",
+        details: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined
+      });
+    }
+  });
+
+  // Project backup endpoints
+  app.get("/api/projects/export", async (_req, res) => {
+    try {
+      console.log("[Routes] Exporting all projects");
+      
+      if (!await validateDatabaseConnection()) {
+        throw new Error("Database connection is not available");
+      }
+      
+      const allProjects = await db
+        .select()
+        .from(projects)
+        .orderBy(desc(projects.createdAt));
+      
+      const exportData = {
+        version: "1.0",
+        exportDate: new Date().toISOString(),
+        projects: allProjects
+      };
+      
+      res.json(exportData);
+    } catch (error) {
+      logError("exportProjects", error);
+      res.status(500).json({ 
+        error: "Failed to export projects",
+        details: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined
+      });
+    }
+  });
+
+  app.post("/api/projects/import", async (req, res) => {
+    try {
+      console.log("[Routes] Importing projects");
+      
+      if (!await validateDatabaseConnection()) {
+        throw new Error("Database connection is not available");
+      }
+      
+      const importData = req.body;
+      
+      if (!Array.isArray(importData.projects)) {
+        throw new Error("Invalid import data format");
+      }
+      
+      const results = await Promise.allSettled(
+        importData.projects.map(async (project) => {
+          const projectData = projectSchema.parse(project);
+          return db.insert(projects).values({
+            ...projectData,
+            id: uuidv4(), // Generate new ID to avoid conflicts
+            userId: 'public',
+            createdAt: new Date(),
+            updatedAt: new Date()
+          }).returning();
+        })
+      );
+      
+      const succeeded = results.filter(r => r.status === 'fulfilled').length;
+      const failed = results.filter(r => r.status === 'rejected').length;
+      
+      console.log(`[Routes] Import completed: ${succeeded} succeeded, ${failed} failed`);
+      res.json({ 
+        message: "Import completed",
+        results: {
+          total: results.length,
+          succeeded,
+          failed
+        }
+      });
+    } catch (error) {
+      logError("importProjects", error, { requestBody: req.body });
+      res.status(500).json({ 
+        error: "Failed to import projects",
         details: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined
       });
     }
