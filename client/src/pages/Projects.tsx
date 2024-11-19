@@ -299,12 +299,12 @@ export default function Projects() {
         <ErrorBoundary>
           <div className="flex items-center gap-4 mb-6">
             <Button
-              onClick={() => setLocation('/')}
+              onClick={() => setLocation('/generator')}
               variant="ghost"
               className="text-white hover:bg-white/10"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Home
+              Back to Generator
             </Button>
           </div>
           <div className="flex justify-between items-center mb-6">
@@ -474,20 +474,20 @@ export default function Projects() {
                   </CardContent>
                   <CardFooter className="flex justify-end space-x-2">
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       size="icon"
                       onClick={() => openEditDialog(project)}
-                      className="bg-white/10 hover:bg-white/20 text-white border border-white/10"
+                      className="hover:bg-white/10"
                     >
-                      <Pencil className="h-4 w-4" />
+                      <Pencil className="h-4 w-4 text-white" />
                     </Button>
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       size="icon"
                       onClick={() => handleDelete(project.id)}
-                      className="bg-white/10 hover:bg-white/20 text-white border border-white/10"
+                      className="hover:bg-white/10"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-4 w-4 text-white" />
                     </Button>
                   </CardFooter>
                 </Card>
