@@ -173,21 +173,18 @@ export function useUser() {
     login: async (credentials: { email: string; password: string }) => {
       try {
         console.log("[useUser] Attempting login");
-        const response = await retryRequest(() =>
-          fetch("/api/auth/login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(credentials),
-          })
-        );
-
-        if (!response.ok) {
-          const data = await response.json();
-          throw new Error(data.error || "Login failed");
-        }
+        const response = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(credentials),
+        });
 
         const data = await response.json();
         
+        if (!response.ok) {
+          throw new Error(data.error || "Login failed");
+        }
+
         if (!data.token) {
           throw new Error("No token received from server");
         }
@@ -197,14 +194,10 @@ export function useUser() {
         await mutate();
         
         const returnTo = sessionStorage.getItem('returnTo');
-        if (returnTo) {
-          sessionStorage.removeItem('returnTo');
-        }
-        
         return { 
           ok: true, 
           data,
-          returnTo: returnTo || '/projects'
+          returnTo: returnTo || '/getting-started'
         };
       } catch (error) {
         console.error("[useUser] Login error:", error);

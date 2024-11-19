@@ -197,11 +197,13 @@ export function registerRoutes(app: Express) {
     }
   });
 
-  // Update login endpoint with password comparison and better error handling
+  // Updated login endpoint with improved error handling
   app.post("/api/auth/login", async (req, res) => {
     try {
       const { email, password } = signUpSchema.parse(req.body);
+      console.log("[Routes] Login attempt for email:", email);
       
+      // First check if user exists
       const user = await db.query.users.findFirst({
         where: eq(users.email, email),
       });
@@ -211,21 +213,20 @@ export function registerRoutes(app: Express) {
         return res.status(401).json({ error: "Invalid credentials" });
       }
 
+      // Verify password
       const isValidPassword = await comparePasswords(password, user.hashedPassword);
       if (!isValidPassword) {
         console.log("[Routes] Login failed: Invalid password");
         return res.status(401).json({ error: "Invalid credentials" });
       }
 
+      // Generate and send token
       const token = generateToken(user.id);
       console.log("[Routes] Login successful for user:", user.id);
       res.json({ token, userId: user.id });
     } catch (error) {
       console.error("[Routes] Login error:", error);
-      res.status(400).json({ 
-        error: error instanceof Error ? error.message : "Login failed",
-        details: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined
-      });
+      res.status(400).json({ error: "Invalid credentials" });
     }
   });
 }

@@ -58,6 +58,13 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
         setIsAuthenticated(true);
         setAuthError(null);
         console.log("[ProtectedRoute] User authenticated:", user.id);
+        
+        // Handle post-login redirect
+        const returnTo = sessionStorage.getItem('returnTo');
+        if (returnTo) {
+          sessionStorage.removeItem('returnTo');
+          handleRedirect(returnTo);
+        }
       } else if (error) {
         throw error;
       }
