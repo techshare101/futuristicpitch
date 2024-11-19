@@ -31,7 +31,7 @@ export function useUser() {
         return { 
           ok: true,
           data,
-          returnTo: sessionStorage.getItem('returnTo') || '/projects'
+          returnTo: sessionStorage.getItem('returnTo') || '/generator'
         };
       } catch (error) {
         console.error("[useUser] Login error:", error);

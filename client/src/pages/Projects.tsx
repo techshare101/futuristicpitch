@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Pencil, Trash2, AlertCircle, Loader2, ArrowLeft, SaveAll } from "lucide-react";
+import { Plus, Pencil, Trash2, AlertCircle, Loader2, ArrowLeft, SaveAll, Wand } from "lucide-react";
 import useSWR from "swr";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -316,6 +316,13 @@ export default function Projects() {
               >
                 <SaveAll className="mr-2 h-4 w-4" />
                 Backup/Export
+              </Button>
+              <Button
+                onClick={() => setLocation('/generator')}
+                className="bg-white/10 hover:bg-white/20 text-white border border-white/10"
+              >
+                <Wand className="mr-2 h-4 w-4" />
+                Open Generator
               </Button>
               <Dialog open={isDialogOpen} onOpenChange={(open) => {
                 setIsDialogOpen(open);
