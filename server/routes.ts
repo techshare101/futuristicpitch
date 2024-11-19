@@ -7,6 +7,21 @@ import { eq } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 import { ZodError } from "zod";
 
+async function ensurePublicUser() {
+  const publicUser = await db.query.users.findFirst({
+    where: eq(users.id, 'public')
+  });
+  
+  if (!publicUser) {
+    await db.insert(users).values({
+      id: 'public',
+      email: 'public@example.com',
+      hashedPassword: 'none',
+      emailVerified: true
+    });
+  }
+}
+
 export function registerRoutes(app: Express) {
   // Health check endpoint
   app.get("/api/health", (_req, res) => {
@@ -47,11 +62,14 @@ export function registerRoutes(app: Express) {
     try {
       console.log("[Routes] Creating new project");
       
+      // Ensure public user exists
+      await ensurePublicUser();
+      
       const projectData = projectSchema.parse(req.body);
       
       const newProject = await db.insert(projects).values({
         id: uuidv4(),
-        userId: 'public', // Default userId for unauthenticated access
+        userId: 'public',
         ...projectData,
       }).returning();
 
