@@ -9,17 +9,22 @@ import { ZodError } from "zod";
 import { desc } from "drizzle-orm";
 
 async function ensurePublicUser() {
-  const publicUser = await db.query.users.findFirst({
-    where: eq(users.id, 'public')
-  });
-  
-  if (!publicUser) {
-    await db.insert(users).values({
-      id: 'public',
-      email: 'public@example.com',
-      hashedPassword: 'none',
-      emailVerified: true
+  try {
+    const publicUser = await db.query.users.findFirst({
+      where: eq(users.id, 'public')
     });
+    
+    if (!publicUser) {
+      await db.insert(users).values({
+        id: 'public',
+        email: 'public@example.com',
+        hashedPassword: 'none',
+        emailVerified: true
+      });
+    }
+  } catch (error) {
+    console.error("[Routes] Failed to ensure public user:", error);
+    throw new Error("Failed to setup public user");
   }
 }
 
@@ -29,26 +34,22 @@ export function registerRoutes(app: Express) {
     res.json({ status: "ok" });
   });
 
-  // Authentication status endpoint - temporarily disabled
-  app.get("/api/auth/status", (_req, res) => {
-    res.json({
-      authenticated: true,
-      emailVerified: true,
-      userId: 'public',
-      email: 'public@example.com'
-    });
-  });
-
   // Projects CRUD endpoints - No authentication required
   app.get("/api/projects", async (_req, res) => {
     try {
       console.log("[Routes] Fetching all projects");
       
       // Check database connection first
-      await db.query.users.findFirst();
+      await db.query.users.findFirst().catch(error => {
+        console.error("[Routes] Database connection error:", error);
+        throw new Error("Database connection failed");
+      });
       
-      // Ensure public user exists
-      await ensurePublicUser();
+      // Ensure public user exists with better error handling
+      await ensurePublicUser().catch(error => {
+        console.error("[Routes] Failed to ensure public user:", error);
+        throw new Error("Failed to setup public user");
+      });
       
       const allProjects = await db
         .select()

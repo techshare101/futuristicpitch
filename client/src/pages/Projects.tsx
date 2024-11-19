@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Pencil, Trash2, AlertCircle, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, AlertCircle, Loader2, ArrowLeft } from "lucide-react";
 import useSWR from "swr";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -250,6 +250,16 @@ export default function Projects() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-[#2a0066] to-slate-900 p-8">
       <div className="container mx-auto">
         <ErrorBoundary>
+          <div className="flex items-center gap-4 mb-6">
+            <Button
+              onClick={() => setLocation('/')}
+              variant="ghost"
+              className="text-white hover:bg-white/10"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Home
+            </Button>
+          </div>
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-3xl font-bold text-white">Projects</h1>
             <Dialog open={isDialogOpen} onOpenChange={(open) => {
